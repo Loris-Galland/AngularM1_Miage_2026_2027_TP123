@@ -77,3 +77,7 @@ Testé côté backend que renvoyer un faux token donne bien 401. Le comportement
 Séparation composant / service / API
 
 Le sujet demande explicitement qu'un composant appelle jamais HttpClient direct, toujours via AuthService. J'ai vérifié avec un grep sur tout le dossier components, zéro résultat: aucun composant n'importe HttpClient. Seuls les deux services (auth.service.ts et track.service.ts) l'injectent. Tous les composants utilisent inject() pour récupérer AuthService, TrackService ou Router, jamais autre chose.
+
+À propos de l'IA
+
+Le modèle que j'utilise dans mon assistant c'est Claude Sonnet 5. Pour voir combien j'ai consommé de tokens, y'a la commande /cost dans Claude Code qui donne le coût et la durée de la session. Pour savoir quel est le meilleur modèle pour une tâche donnée, c'est la doc officielle d'Anthropic (platform.claude.com/docs) qui compare les modèles, en gros Haiku pour les trucs simples et rapides, Sonnet pour l'équilibre qualité/coût (c'est celui que j'utilise), et Opus pour les tâches les plus complexes.
