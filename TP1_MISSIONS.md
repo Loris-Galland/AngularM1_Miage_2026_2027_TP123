@@ -59,3 +59,7 @@ Côté back c'est dans app.js, la route PUT /api/users/me, protégée par le mid
 Appels register et login, JWT stocké proprement, signal currentUser, et redirections
 
 Ces quatre points étaient déjà bons dans le starter, j'ai juste vérifié un par un. AuthService fait bien les appels POST vers auth/register et auth/login. Le token est stocké dans le localStorage et je me suis assuré qu'il est jamais loggé nulle part dans le code. Le signal currentUser se met à jour à chaque login, register, et à chaque fois qu'on charge ou modifie le profil. Et les redirections marchent, login renvoie vers tracks, register renvoie vers profile. Rien eu besoin de toucher.
+
+Le bouton de déconnexion
+
+Ça manquait complètement, AuthService.logout() existait déjà mais rien l'appelait nulle part. Je l'ai mis dans la nav de app.html, avec un affichage conditionnel: si je suis connecté (signal token) ça affiche "Déconnexion", sinon ça affiche le lien "Connexion" comme avant. Le clic appelle logout() dans app.ts qui vide le token et redirige vers /login.
