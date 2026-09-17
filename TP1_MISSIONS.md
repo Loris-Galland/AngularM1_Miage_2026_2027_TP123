@@ -47,3 +47,15 @@ Validations sur le formulaire d'inscription
 Le formulaire register avait juste des validators required, mais le backend refuse un nom de moins de 2 caractères et un mot de passe de moins de 8. J'ai ajouté minLength(2) sur le nom et minLength(8) sur le password pour que ça matche, plus un message d'erreur sous chaque champ qui s'affiche seulement une fois que t'as touché le champ. J'ai aussi désactivé le bouton tant que le formulaire est pas valide.
 
 Testé en tapant un mot de passe trop court direct sur le backend, il renvoie bien 400. Et une inscription valide passe bien en 201.
+
+Les routes utilisées
+
+health en publique juste pour check que le serveur tourne, auth/register et auth/login en publique aussi. Tout le reste demande le JWT, users/me pour charger et modifier le profil, et tracks/* pour la bibliothèque audio (lister, uploader, écouter, et supprimer en bonus mais c'est pas encore branché côté front).
+
+Où se passe la mise à jour du profil
+
+Côté back c'est dans app.js, la route PUT /api/users/me, protégée par le middleware auth, qui fait un findByIdAndUpdate sur l'utilisateur connecté. Côté front c'est dans auth.service.ts, la méthode update(name), appelée depuis profile-page.ts quand on clique sur enregistrer.
+
+Appels register et login, JWT stocké proprement, signal currentUser, et redirections
+
+Ces quatre points étaient déjà bons dans le starter, j'ai juste vérifié un par un. AuthService fait bien les appels POST vers auth/register et auth/login. Le token est stocké dans le localStorage et je me suis assuré qu'il est jamais loggé nulle part dans le code. Le signal currentUser se met à jour à chaque login, register, et à chaque fois qu'on charge ou modifie le profil. Et les redirections marchent, login renvoie vers tracks, register renvoie vers profile. Rien eu besoin de toucher.
