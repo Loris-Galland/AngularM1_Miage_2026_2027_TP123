@@ -67,3 +67,13 @@ Le bouton de déconnexion
 Le chargement automatique du profil
 
 Avant fallait cliquer sur un bouton exprès pour charger son profil, c'était pas automatique. J'ai ajouté ngOnInit sur ProfilePageComponent qui appelle load() dès l'arrivée sur la page. J'ai gardé le bouton quand même, ça sert à recharger manuellement si besoin.
+
+La gestion du 401
+
+C'était le dernier truc qui manquait, repéré dès la mission 0. J'ai créé un nouvel intercepteur (error.interceptor.ts) qui catch les erreurs HTTP, et si c'est un 401 (token invalide ou expiré), il vide la session avec auth.logout() et renvoie vers /login. Je l'ai branché dans main.ts juste après authInterceptor.
+
+Testé côté backend que renvoyer un faux token donne bien 401. Le comportement dans le navigateur (redirection effective) reste à vérifier moi-même en changeant le token dans le localStorage.
+
+Séparation composant / service / API
+
+Le sujet demande explicitement qu'un composant appelle jamais HttpClient direct, toujours via AuthService. J'ai vérifié avec un grep sur tout le dossier components, zéro résultat: aucun composant n'importe HttpClient. Seuls les deux services (auth.service.ts et track.service.ts) l'injectent. Tous les composants utilisent inject() pour récupérer AuthService, TrackService ou Router, jamais autre chose.
