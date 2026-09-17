@@ -63,3 +63,7 @@ Ces quatre points étaient déjà bons dans le starter, j'ai juste vérifié un 
 Le bouton de déconnexion
 
 Ça manquait complètement, AuthService.logout() existait déjà mais rien l'appelait nulle part. Je l'ai mis dans la nav de app.html, avec un affichage conditionnel: si je suis connecté (signal token) ça affiche "Déconnexion", sinon ça affiche le lien "Connexion" comme avant. Le clic appelle logout() dans app.ts qui vide le token et redirige vers /login.
+
+Le chargement automatique du profil
+
+Avant fallait cliquer sur un bouton exprès pour charger son profil, c'était pas automatique. J'ai ajouté ngOnInit sur ProfilePageComponent qui appelle load() dès l'arrivée sur la page. J'ai gardé le bouton quand même, ça sert à recharger manuellement si besoin.
