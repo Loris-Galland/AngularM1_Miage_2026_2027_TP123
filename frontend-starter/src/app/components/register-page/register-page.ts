@@ -14,10 +14,12 @@ export class RegisterPageComponent {
 
   readonly error = signal('');
   
+  // Formulaire d'inscription, avec les mêmes règles que le backend
+  // (nom 2 caractères minimum, mot de passe 8 caractères minimum)
   readonly form = new FormGroup({
-    name: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
+    name: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(2)] }),
     email: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.email] }),
-    password: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
+    password: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(8)] }),
   });
 
   submit(): void {

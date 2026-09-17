@@ -40,4 +40,10 @@ Deux trucs que j'ai remarqué en explorant et qui vont être utiles pour la miss
 
 ## Mission 1 — Inscription, connexion et profil
 
-(à compléter au fur et à mesure)
+J'ai d'abord regardé ce qui était déjà fait dans le starter (formulaires, appels API, JWT, Signals, redirections, modif du profil), tout ça était déjà bon. Ce qu'il manquait ou qui était pas top, je le corrige un par un.
+
+Validations sur le formulaire d'inscription
+
+Le formulaire register avait juste des validators required, mais le backend refuse un nom de moins de 2 caractères et un mot de passe de moins de 8. J'ai ajouté minLength(2) sur le nom et minLength(8) sur le password pour que ça matche, plus un message d'erreur sous chaque champ qui s'affiche seulement une fois que t'as touché le champ. J'ai aussi désactivé le bouton tant que le formulaire est pas valide.
+
+Testé en tapant un mot de passe trop court direct sur le backend, il renvoie bien 400. Et une inscription valide passe bien en 201.
