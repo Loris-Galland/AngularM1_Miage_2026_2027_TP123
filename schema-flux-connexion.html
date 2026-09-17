@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Flux de connexion — Guitar Practice Cloud</title>
+<style>
+  :root {
+    --bg: #F6F1E7;
+    --surface: #FFFCF5;
+    --ink: #241D15;
+    --ink-muted: #6B5D4A;
+    --line: #D9CDB8;
+    --accent: #D8722A;
+    --accent-soft: #F2DCC4;
+    --success: #3F7D52;
+    --success-soft: #DCEAE0;
+    --danger: #B24632;
+    --danger-soft: #F3DEDA;
+    --code-bg: #EFE7D6;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17130E;
+      --surface: #211B14;
+      --ink: #EDE3D2;
+      --ink-muted: #A99A82;
+      --line: #3B3224;
+      --accent: #F2924A;
+      --accent-soft: #3E2A18;
+      --success: #6FBE86;
+      --success-soft: #1E3327;
+      --danger: #E2705C;
+      --danger-soft: #3A241F;
+      --code-bg: #2A2318;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #17130E;
+    --surface: #211B14;
+    --ink: #EDE3D2;
+    --ink-muted: #A99A82;
+    --line: #3B3224;
+    --accent: #F2924A;
+    --accent-soft: #3E2A18;
+    --success: #6FBE86;
+    --success-soft: #1E3327;
+    --danger: #E2705C;
+    --danger-soft: #3A241F;
+    --code-bg: #2A2318;
+  }
+  :root[data-theme="light"] {
+    --bg: #F6F1E7;
+    --surface: #FFFCF5;
+    --ink: #241D15;
+    --ink-muted: #6B5D4A;
+    --line: #D9CDB8;
+    --accent: #D8722A;
+    --accent-soft: #F2DCC4;
+    --success: #3F7D52;
+    --success-soft: #DCEAE0;
+    --danger: #B24632;
+    --danger-soft: #F3DEDA;
+    --code-bg: #EFE7D6;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+    padding: 3rem 1.5rem 5rem;
+  }
+  code, .mono {
+    font-family: ui-monospace, "Cascadia Code", "SF Mono", Consolas, "Liberation Mono", monospace;
+    font-size: 0.85em;
+  }
+
+  .page {
+    max-width: 760px;
+    margin: 0 auto;
+  }
+
+  header.intro {
+    margin-bottom: 3rem;
+  }
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 0.75rem;
+  }
+  .eyebrow .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+    animation: glow 2.4s ease-in-out infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .eyebrow .dot { animation: none; }
+  }
+  @keyframes glow {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.55; }
+  }
+  h1 {
+    font-size: clamp(1.7rem, 1.3rem + 1.5vw, 2.3rem);
+    margin: 0 0 0.6rem;
+    text-wrap: balance;
+    letter-spacing: -0.01em;
+  }
+  .subtitle {
+    color: var(--ink-muted);
+    font-size: 1rem;
+    max-width: 60ch;
+  }
+
+  /* ---- Timeline ---- */
+  .timeline {
+    position: relative;
+    padding-left: 3.1rem;
+  }
+  .timeline::before {
+    content: "";
+    position: absolute;
+    left: 1.15rem;
+    top: 0.4rem;
+    bottom: 0.4rem;
+    width: 2px;
+    background: linear-gradient(to bottom, var(--line), var(--line) 92%, transparent);
+  }
+
+  .step {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 1.1rem 1.3rem;
+    margin-bottom: 1rem;
+  }
+  .step-badge {
+    position: absolute;
+    left: -3.1rem;
+    top: 1.1rem;
+    width: 2.3rem;
+    height: 2.3rem;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 2px solid var(--accent);
+    color: var(--accent);
+    font-weight: 700;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .step-title {
+    font-weight: 700;
+    font-size: 1rem;
+    margin: 0 0 0.3rem;
+  }
+  .step-where {
+    color: var(--ink-muted);
+    font-size: 0.82rem;
+    margin: 0 0 0.55rem;
+  }
+  .step-detail {
+    font-size: 0.92rem;
+    margin: 0;
+  }
+  .step-detail + .snippet {
+    margin-top: 0.6rem;
+  }
+  .snippet {
+    background: var(--code-bg);
+    border-radius: 6px;
+    padding: 0.55rem 0.75rem;
+    overflow-x: auto;
+    white-space: pre;
+  }
+
+  /* ---- Fork (success / error) ---- */
+  .fork-label {
+    text-align: center;
+    color: var(--ink-muted);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 700;
+    margin: 2rem 0 0.9rem -3.1rem;
+  }
+  .fork {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-left: -3.1rem;
+  }
+  @media (max-width: 640px) {
+    .fork { grid-template-columns: 1fr; }
+  }
+  .outcome {
+    border-radius: 10px;
+    padding: 1.1rem 1.2rem;
+    border: 1px solid;
+  }
+  .outcome.ok {
+    background: var(--success-soft);
+    border-color: color-mix(in srgb, var(--success) 45%, var(--line));
+  }
+  .outcome.err {
+    background: var(--danger-soft);
+    border-color: color-mix(in srgb, var(--danger) 45%, var(--line));
+  }
+  .outcome-label {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-weight: 700;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+  }
+  .outcome.ok .outcome-label { color: var(--success); }
+  .outcome.err .outcome-label { color: var(--danger); }
+  .outcome p {
+    margin: 0.3rem 0 0;
+    font-size: 0.88rem;
+    color: var(--ink);
+  }
+
+  footer.note {
+    margin-top: 2.5rem;
+    padding-top: 1.2rem;
+    border-top: 1px solid var(--line);
+    font-size: 0.82rem;
+    color: var(--ink-muted);
+    max-width: 60ch;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .step, .fork {
+      animation: rise 0.5s ease backwards;
+    }
+    .step:nth-of-type(1) { animation-delay: 0.02s; }
+    .step:nth-of-type(2) { animation-delay: 0.06s; }
+    .step:nth-of-type(3) { animation-delay: 0.10s; }
+    .step:nth-of-type(4) { animation-delay: 0.14s; }
+    .step:nth-of-type(5) { animation-delay: 0.18s; }
+    .step:nth-of-type(6) { animation-delay: 0.22s; }
+    .step:nth-of-type(7) { animation-delay: 0.26s; }
+    .step:nth-of-type(8) { animation-delay: 0.30s; }
+    .fork { animation-delay: 0.34s; }
+  }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
+</head>
+<body>
+  <div class="page">
+    <header class="intro">
+      <div class="eyebrow"><span class="dot"></span>TP1 — Mission 0</div>
+      <h1>Flux de connexion, clic par clic</h1>
+      <p class="subtitle">
+        Ce qui se passe entre le moment où je clique sur « Se connecter » sur
+        <code>/login</code> et le moment où j'arrive sur <code>/tracks</code>,
+        dans Guitar Practice Cloud.
+      </p>
+    </header>
+
+    <div class="timeline">
+      <div class="step">
+        <div class="step-badge">1</div>
+        <p class="step-title">Je remplis le formulaire et je clique</p>
+        <p class="step-where mono">login-page.html</p>
+        <p class="step-detail">
+          Le formulaire réactif est lié à <code>form</code> dans <code>LoginPageComponent</code>.
+          Le clic déclenche <code>(ngSubmit)="submit()"</code>.
+        </p>
+      </div>
+
+      <div class="step">
+        <div class="step-badge">2</div>
+        <p class="step-title">Le composant lit le formulaire</p>
+        <p class="step-where mono">LoginPageComponent.submit()</p>
+        <p class="step-detail">Récupère <code>email</code>/<code>password</code>, puis délègue tout à <code>AuthService</code> — le composant n'appelle jamais <code>HttpClient</code> directement.</p>
+        <div class="snippet mono">this.auth.login(values.email, values.password).subscribe({ ... })</div>
+      </div>
+
+      <div class="step">
+        <div class="step-badge">3</div>
+        <p class="step-title">Le service construit la requête</p>
+        <p class="step-where mono">AuthService.login()</p>
+        <div class="snippet mono">this.http.post('/api/auth/login', { email, password })</div>
+      </div>
+
+      <div class="step">
+        <div class="step-badge">4</div>
+        <p class="step-title">L'intercepteur JWT passe la main</p>
+        <p class="step-where mono">authInterceptor</p>
+        <p class="step-detail">
+          Route publique donc pas de token encore requis — l'intercepteur laisse
+          la requête filer sans en-tête <code>Authorization</code> (ou avec un ancien
+          token que le backend ignore ici).
+        </p>
+      </div>
+
+      <div class="step">
+        <div class="step-badge">5</div>
+        <p class="step-title">La requête sort du navigateur</p>
+        <p class="step-where mono">proxy.conf.json (dev)</p>
+        <div class="snippet mono">/api/* → http://localhost:3000</div>
+      </div>
+
+      <div class="step">
+        <div class="step-badge">6</div>
+        <p class="step-title">Le backend vérifie l'utilisateur</p>
+        <p class="step-where mono">backend · route POST /api/auth/login</p>
+        <p class="step-detail">
+          Cherche l'utilisateur en base via Mongoose, compare le mot de passe avec
+          <code>bcrypt.compare</code>. Si tout est bon : <code>jwt.sign()</code> génère
+          le token avec <code>JWT_SECRET</code>.
+        </p>
+      </div>
+
+      <div class="step">
+        <div class="step-badge">7</div>
+        <p class="step-title">La réponse remonte et met à jour l'état</p>
+        <p class="step-where mono">AuthService.login() → tap(storeAuthentication)</p>
+        <div class="snippet mono">localStorage.setItem('gpc_token', token)
+token.set(token)
+currentUser.set(user)</div>
+        <p class="step-detail">Les deux Signals (<code>token</code>, <code>currentUser</code>) sont mis à jour — toute l'appli qui les lit se met à jour automatiquement.</p>
+      </div>
+
+      <div class="step">
+        <div class="step-badge">8</div>
+        <p class="step-title">Le composant réagit au résultat</p>
+        <p class="step-where mono">LoginPageComponent.submit() · callbacks subscribe</p>
+        <p class="step-detail">Selon que l'appel a réussi ou échoué, deux chemins possibles ↓</p>
+      </div>
+    </div>
+
+    <p class="fork-label">Bifurcation</p>
+    <div class="fork">
+      <div class="outcome ok">
+        <div class="outcome-label">✓ Succès</div>
+        <p><code>next()</code> s'exécute</p>
+        <p><code>router.navigateByUrl('/tracks')</code></p>
+        <p>Je suis redirigé, connecté.</p>
+      </div>
+      <div class="outcome err">
+        <div class="outcome-label">✕ Échec</div>
+        <p><code>error()</code> s'exécute</p>
+        <p><code>error.set(message)</code></p>
+        <p>Le message s'affiche sous le formulaire, je reste sur <code>/login</code>.</p>
+      </div>
+    </div>
+
+    <footer class="note">
+      Schéma réalisé pour la Mission 0 du TP1 (M1 MIAGE — Programmation Web),
+      à partir de la lecture du code de <code>frontend-starter/</code> et <code>backend/</code>,
+      sans modification du code.
+    </footer>
+  </div>
+</body>
+</html>
