@@ -57,6 +57,9 @@
       @if (error()) {
         <p class="error" role="alert">{{ error() }}</p>
       }
+      @if (notice()) {
+        <p class="success" role="status">{{ notice() }}</p>
+      }
       @if (loading()) {
         <p aria-live="polite">Chargement…</p>
       } @else {
@@ -75,14 +78,25 @@
                   <div><dt>Taille</dt><dd>{{ track.size | fileSize }}</dd></div>
                   <div><dt>Ajoutée le</dt><dd>{{ track.createdAt | date: 'dd/MM/yyyy HH:mm' }}</dd></div>
                 </dl>
-                <button
-                  type="button"
-                  (click)="play(track)"
-                  [disabled]="audioLoadingId() === track.id"
-                  [attr.aria-label]="'Écouter ' + track.title"
-                >
-                  {{ audioLoadingId() === track.id ? 'Chargement…' : '▶ Écouter' }}
-                </button>
+                <div class="actions">
+                  <button
+                    type="button"
+                    (click)="play(track)"
+                    [disabled]="audioLoadingId() === track.id || deletingId() === track.id"
+                    [attr.aria-label]="'Écouter ' + track.title"
+                  >
+                    {{ audioLoadingId() === track.id ? 'Chargement…' : '▶ Écouter' }}
+                  </button>
+                  <button
+                    type="button"
+                    class="delete"
+                    (click)="remove(track)"
+                    [disabled]="deletingId() === track.id"
+                    [attr.aria-label]="'Supprimer ' + track.title"
+                  >
+                    {{ deletingId() === track.id ? 'Suppression…' : 'Supprimer' }}
+                  </button>
+                </div>
               </article>
             </li>
           } @empty {

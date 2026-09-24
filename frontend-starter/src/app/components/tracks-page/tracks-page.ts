@@ -3,6 +3,11 @@ import { DatePipe } from '@angular/common';
 import { HttpEventType } from '@angular/common/http';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
+import { MatDialog } from '@angular/material/dialog';
+import {
+  ConfirmDialogComponent,
+  ConfirmDialogData,
+} from '../../shared/components/confirm-dialog/confirm-dialog';
 import { Track } from '../../shared/models/track.model';
 import { TrackService } from '../../shared/services/track.service';
 import { AUDIO_TYPES, validateAudioFile } from '../../shared/validators/audio-file';
@@ -16,6 +21,7 @@ import { AudioFormatPipe } from '../../shared/pipes/audio-format.pipe';
 })
 export class TracksPageComponent {
   private readonly service = inject(TrackService);
+  private readonly dialog = inject(MatDialog);
 
   readonly tracks = signal<Track[]>([]);
   readonly page = signal(1);
@@ -28,6 +34,8 @@ export class TracksPageComponent {
   readonly current = signal<Track | null>(null);
   readonly audioLoadingId = signal<string | null>(null);
   readonly audioError = signal('');
+  readonly deletingId = signal<string | null>(null);
+  readonly notice = signal('');
   readonly title = new FormControl('', { nonNullable: true });
   readonly file = signal<File | null>(null);
   readonly uploading = signal(false);
@@ -150,6 +158,54 @@ export class TracksPageComponent {
         );
       },
     });
+  }
+
+  /** Asks for confirmation in a Material dialog, then deletes. */
+  remove(track: Track): void {
+    this.dialog
+      .open<ConfirmDialogComponent, ConfirmDialogData, boolean>(ConfirmDialogComponent, {
+        data: {
+          title: 'Supprimer la piste ?',
+          message: `« ${track.title} » sera supprimée définitivement de votre bibliothèque.`,
+          confirmLabel: 'Supprimer',
+        },
+      })
+      .afterClosed()
+      .subscribe((confirmed) => {
+        if (confirmed) this.delete(track);
+      });
+  }
+
+  private delete(track: Track): void {
+    this.deletingId.set(track.id);
+    this.error.set('');
+    this.notice.set('');
+
+    this.service.remove(track.id).subscribe({
+      next: () => {
+        console.debug('[TracksPage] Piste supprimée', track.id);
+        if (this.current()?.id === track.id) this.stopPlayback();
+        // Last track of a page other than the first: go back one page instead of showing an empty one.
+        if (this.tracks().length === 1 && this.page() > 1) this.page.update((page) => page - 1);
+        this.deletingId.set(null);
+        this.notice.set(`« ${track.title} » a été supprimée.`);
+        this.load();
+      },
+      error: (error: { error?: { message?: string } }) => {
+        console.error('[TracksPage] Suppression impossible', error);
+        this.deletingId.set(null);
+        this.error.set(error.error?.message ?? `Impossible de supprimer « ${track.title} ».`);
+        // The backend can delete the metadata and still fail on the file: refresh to stay in sync.
+        this.load();
+      },
+    });
+  }
+
+  private stopPlayback(): void {
+    const url = this.audioUrl();
+    if (url) URL.revokeObjectURL(url);
+    this.audioUrl.set('');
+    this.current.set(null);
   }
 
   /** The Blob was downloaded but the browser cannot decode it. */

@@ -30,4 +30,9 @@ export class TrackService {
       responseType: 'blob',
     });
   }
+
+  /** DELETE /api/tracks/:id answers 204 with no body. */
+  remove(id: string) {
+    return this.http.delete<void>(`/api/tracks/${id}`);
+  }
 }
