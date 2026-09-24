@@ -114,7 +114,9 @@ Les contrôles du backend
 
 Tout est dans app.js. MAX_FILE_SIZE vaut 25 Mo et est passé à Multer dans limits.fileSize. La liste allowed contient les types MIME acceptés (audio/mpeg, audio/wav, audio/x-wav, audio/ogg, audio/mp4, audio/x-m4a), et le fileFilter de Multer refuse tout le reste avec "Format audio non accepté". upload.single("audio") dit à Multer que le fichier doit être dans le champ audio, et le titre est lu dans req.body.title (si y'a pas de titre il prend le nom du fichier). Si y'a pas de fichier la route répond 400 "Fichier audio requis", et le gestionnaire d'erreurs à la fin transforme les erreurs de Multer (fichier trop gros, mauvais format) en 400.
 
-Côté front j'ai vérifié que le FormData contient exactement les champs audio et title, c'était déjà bon.
+Côté front j'ai vérifié que le FormData contient exactement les champs audio et title, c'était déjà bon. On le voit dans le Payload de la requête POST tracks : audio (binary) et title. Et à gauche on voit le message de succès, le champ fichier revenu à "Aucun fichier choisi" et la nouvelle card en premier.
+
+![Upload en multipart avec audio et title](screenshots/tp2/upload_multipart.PNG)
 
 La validation avant l'envoi
 
@@ -139,6 +141,10 @@ La lecture
 Le mécanisme était déjà là, j'ai complété ce qui manquait. Au-dessus des cards y'a maintenant "En cours : titre" avec le lecteur. Pendant le téléchargement du fichier le bouton de la piste affiche "Chargement…". Si la requête échoue j'affiche un message clair : avec un 404 ça veut dire que la piste existe pas ou appartient à quelqu'un d'autre. Si le fichier arrive mais que le navigateur arrive pas à le lire, l'événement (error) de la balise audio affiche aussi un message.
 
 Et le dernier truc qui manquait : révoquer l'ObjectURL finale quand on quitte la page. play() révoquait déjà l'ancienne URL à chaque nouvelle lecture, mais la dernière restait en mémoire pour toujours. J'ai ajouté un DestroyRef.onDestroy qui la révoque quand le composant est détruit.
+
+Sur cette capture on voit la lecture en cours avec la card entourée en vert, et la requête audio : GET en 200, Content-Type audio/mpeg (donc c'est bien un flux audio et pas du JSON) et Accept-Ranges bytes. Le header Authorization est bien là dans la requête, j'ai masqué la valeur du token.
+
+![Lecture audio authentifiée](screenshots/tp2/lecture_audio.PNG)
 
 J'ai aussi vérifié qu'une piste peut être lue que par son propriétaire : j'ai créé un deuxième compte (proprio-test@example.com) et j'ai essayé de lire une piste du compte demo avec son token, le serveur répond 404 "Piste inconnue", et ce compte voit 0 piste dans sa liste. C'est parce que la route cherche la piste avec son id ET ownerId égal à l'utilisateur du token.
 
@@ -180,7 +186,9 @@ J'ai fait toutes celles proposées par le sujet. Le formatage lisible de la tail
 
 La barre de progression de l'upload
 
-Par défaut HttpClient renvoie juste la réponse finale. Dans TrackService.upload() j'ai ajouté observe: 'events' et reportProgress: true, du coup l'Observable émet plein d'événements pendant l'envoi. Dans le composant je regarde le type de chaque événement : si c'est un UploadProgress, je calcule le pourcentage avec loaded / total et je le mets dans un signal progress, et si c'est la Response finale, je récupère la piste dans event.body et je fais comme avant (message de succès, formulaire vidé, page 1). La barre c'est une balise progress native, avec un aria-label pour les lecteurs d'écran, et le pourcentage écrit à côté. Quand on arrive à 100 % j'affiche "Fichier reçu, enregistrement en cours…", parce qu'à ce moment là le navigateur a fini d'envoyer mais le serveur doit encore écrire dans MongoDB. En local ça va super vite, donc pour la voir avancer faut activer le throttling "Slow 4G" dans l'onglet Network.
+Par défaut HttpClient renvoie juste la réponse finale. Dans TrackService.upload() j'ai ajouté observe: 'events' et reportProgress: true, du coup l'Observable émet plein d'événements pendant l'envoi. Dans le composant je regarde le type de chaque événement : si c'est un UploadProgress, je calcule le pourcentage avec loaded / total et je le mets dans un signal progress, et si c'est la Response finale, je récupère la piste dans event.body et je fais comme avant (message de succès, formulaire vidé, page 1). La barre c'est une balise progress native, avec un aria-label pour les lecteurs d'écran, et le pourcentage écrit à côté. Quand on arrive à 100 % j'affiche "Fichier reçu, enregistrement en cours…", parce qu'à ce moment là le navigateur a fini d'envoyer mais le serveur doit encore écrire dans MongoDB. En local ça va super vite, donc pour la voir avancer faut activer le throttling "Slow 4G" dans l'onglet Network. Sur la capture l'envoi vient de démarrer : bouton "Envoi en cours…" désactivé, input fichier grisé, barre et pourcentage, et la requête tracks en pending.
+
+![Upload en cours avec la barre de progression](screenshots/tp2/progression_upload.PNG)
 
 La suppression avec confirmation
 
@@ -190,7 +198,9 @@ Pour la confirmation j'ai choisi une dialog Angular Material plutôt que le wind
 
 Après la suppression la liste est rechargée depuis le serveur et un message "« titre » a été supprimée" s'affiche. Deux cas particuliers que j'ai gérés : si je supprime la piste en train d'être lue, le lecteur est coupé et son ObjectURL révoquée, et si je supprime la dernière piste d'une page qui est pas la première, on revient à la page d'avant au lieu d'afficher une page vide. Si le serveur répond une erreur (par exemple la fiche supprimée mais pas le fichier), le message s'affiche et la liste est rechargée quand même pour rester à jour.
 
-Testé avec curl sur le compte de test : le premier DELETE répond 204, le deuxième 404 parce que la piste existe plus, et la liste retombe à 0.
+Testé avec curl sur le compte de test : le premier DELETE répond 204, le deuxième 404 parce que la piste existe plus, et la liste retombe à 0. Et dans le navigateur on voit la dialog de confirmation, le message "« Test Multipart » a été supprimée", et dans Network la requête DELETE en 204 No Content suivie du rechargement tracks?page=1&limit=5.
+
+![Dialog de confirmation et DELETE en 204](screenshots/tp2/suppression_son.PNG)
 
 Le filtre par titre
 
@@ -199,3 +209,7 @@ Pour garder une vraie pagination serveur, j'ai fait le filtre côté backend et 
 Côté sécurité j'ai fait attention à deux trucs. Le q doit être une chaîne (si quelqu'un envoie ?q=a&q=b ça fait un tableau, et on l'ignore) et il est coupé à 100 caractères. Et surtout les caractères spéciaux des regex sont échappés avant de construire la requête : sans ça, quelqu'un pourrait taper .* pour tout matcher, ou une regex volontairement très lente pour bloquer le serveur. J'ai testé : "song" et "SONG" donnent les mêmes 3 pistes, "coffee" en donne 1, ".*" en donne 0 parce qu'il est cherché tel quel, et "(" fait pas planter le serveur.
 
 Côté front, y'a un champ "Rechercher par titre" au-dessus des cards. Pour pas envoyer une requête à chaque lettre tapée, j'utilise valueChanges avec debounceTime(300) : on attend 300 ms sans frappe avant de chercher, avec distinctUntilChanged pour pas relancer la même recherche, et takeUntilDestroyed pour arrêter d'écouter quand on quitte la page. À chaque nouvelle recherche on repart de la page 1. J'ai aussi fait en sorte que load() annule la requête précédente si elle est pas finie, sinon une vieille réponse lente pourrait arriver après la nouvelle et écraser les bons résultats. Et si rien correspond, ça affiche "Aucune piste ne correspond à « … »".
+
+Sur la capture j'ai tapé "song" et on voit la requête tracks?page=1&limit=5&q=song partir vers le serveur.
+
+![Filtre par titre envoyé au serveur](screenshots/tp2/recherche_son.PNG)

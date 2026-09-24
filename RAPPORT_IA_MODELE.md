@@ -38,7 +38,15 @@ Note : j'ai fait ce premier TD seul, pas encore en binôme.
 
 **Fichiers effectivement modifiés** : `register-page.ts` et `register-page.html` (validations du formulaire), `app.ts` et `app.html` (bouton de déconnexion), `profile-page.ts` (chargement automatique du profil), `main.ts` et le nouveau fichier `error.interceptor.ts` (gestion du 401).
 
-**Preuve de fonctionnement** : compilation Angular réussie à chaque étape (logs `ng serve` vérifiés). Côté backend, tests via `curl` : inscription avec mot de passe trop court → 400, inscription valide → 201 avec token, login → token renvoyé, `GET /api/users/me` avec token valide → 200, avec token invalide → 401. Le rendu complet dans le navigateur (affichage des messages d'erreur, redirection effective sur 401, captures Network) reste à faire par moi-même dans les DevTools pour le rendu final du TP.
+**Preuve de fonctionnement** : compilation Angular réussie à chaque étape (logs `ng serve` vérifiés). Côté backend, tests via `curl` : inscription avec mot de passe trop court → 400, inscription valide → 201 avec token, login → token renvoyé, `GET /api/users/me` avec token valide → 200, avec token invalide → 401. Captures Network faites par moi dans le navigateur (le détail de chaque requête est dans la partie Checkpoint de `TP1_MISSIONS.md`) :
+
+![Connexion réussie : POST /api/auth/login en 200](screenshots/tp1/connexion.PNG)
+
+![Connexion refusée : POST /api/auth/login en 401 avec « Identifiants incorrects »](screenshots/tp1/mdp_faux.PNG)
+
+![Erreur 401 dans la console](screenshots/tp1/mdp_faux2.PNG)
+
+![Lecture du profil : GET /api/users/me](screenshots/tp1/profil.PNG)
 
 **Ce que je sais maintenant expliquer sans l'agent** : pourquoi les validations du formulaire côté front doivent correspondre aux règles du backend, comment fonctionne l'intercepteur qui ajoute le JWT à chaque requête, pourquoi il fallait un intercepteur séparé pour intercepter les réponses 401, où se trouve exactement la logique de mise à jour du profil côté back (`app.js`) et côté front (`auth.service.ts` / `profile-page.ts`), et pourquoi les composants ne doivent jamais appeler `HttpClient` directement.
 
@@ -90,7 +98,11 @@ Pour les options avancées : `npm test` du backend passe (3 tests sur 3), et les
 
 **Fichiers effectivement modifiés** : `tracks-page.ts`, `tracks-page.html`, `tracks-page.css`, `styles.css`, et les nouveaux fichiers `shared/validators/audio-file.ts`, `shared/pipes/file-size.pipe.ts` et `shared/pipes/audio-format.pipe.ts`. Aucun fichier backend ni `track.service.ts` n'a été modifié pour cette mission.
 
-**Preuve de fonctionnement** : build Angular sans erreur et tests `curl` ci-dessus. Captures Network à ajouter dans `screenshots/tp2/`.
+**Preuve de fonctionnement** : build Angular sans erreur et tests `curl` ci-dessus. Captures faites par moi dans le navigateur :
+
+![Upload multipart avec les champs audio et title, message de succès](screenshots/tp2/upload_multipart.PNG)
+
+![Lecture audio authentifiée : GET 200 en audio/mpeg (token masqué)](screenshots/tp2/lecture_audio.PNG)
 
 **Ce que je sais maintenant expliquer sans l'agent** : le trajet d'un fichier de l'input jusqu'au disque du serveur et à MongoDB, pourquoi un `src` direct n'envoie pas le JWT et comment `Blob` + `ObjectURL` contournent le problème, pourquoi la validation frontend ne remplace jamais celle du backend, la différence entre télécharger un Blob complet, le buffering du navigateur et le streaming côté serveur (requêtes `Range`, réponse 206), et pourquoi il faut révoquer une `ObjectURL` dans une SPA.
 
@@ -108,6 +120,12 @@ Pour les options avancées : `npm test` du backend passe (3 tests sur 3), et les
 
 **Fichiers effectivement modifiés** : `track.service.ts` (`upload` avec les événements de progression, `remove`, `list` avec `q`), `tracks-page.ts/html/css`, le nouveau `shared/components/confirm-dialog/confirm-dialog.ts`, `backend/src/app.js` (paramètre `q` sur `GET /api/tracks`) et `API_CONTRACT.md`.
 
-**Preuve de fonctionnement** : build Angular sans erreur, tests backend 3/3, et tests `curl` ci-dessus. Captures à ajouter.
+**Preuve de fonctionnement** : build Angular sans erreur, tests backend 3/3, et tests `curl` ci-dessus. Captures faites par moi :
+
+![Barre de progression pendant l'upload](screenshots/tp2/progression_upload.PNG)
+
+![Dialog de confirmation et DELETE en 204](screenshots/tp2/suppression_son.PNG)
+
+![Filtre par titre avec q=song](screenshots/tp2/recherche_son.PNG)
 
 **Ce que je sais maintenant expliquer sans l'agent** : comment `reportProgress` et `HttpEventType` permettent de suivre un upload, comment une `MatDialog` renvoie un résultat avec `afterClosed()`, pourquoi un filtre doit être fait côté serveur quand la liste est paginée, pourquoi il faut échapper une saisie avant d'en faire une regex MongoDB, et à quoi servent `debounceTime`, `distinctUntilChanged` et l'annulation de la requête précédente.
