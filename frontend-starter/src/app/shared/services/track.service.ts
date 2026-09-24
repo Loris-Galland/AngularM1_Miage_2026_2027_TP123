@@ -8,9 +8,10 @@ import { Track } from '../models/track.model';
 export class TrackService {
   private readonly http = inject(HttpClient);
 
-  list(page = 1, limit = 5) {
+  /** q is optional: the backend filters by title before paginating. */
+  list(page = 1, limit = 5, q = '') {
     return this.http.get<Page<Track>>('/api/tracks', {
-      params: { page, limit },
+      params: q ? { page, limit, q } : { page, limit },
     });
   }
 
@@ -18,12 +19,21 @@ export class TrackService {
     const body = new FormData();
     body.append('audio', file);
     body.append('title', title);
-    return this.http.post<Track>('/api/tracks', body);
+    // observe: 'events' + reportProgress emits UploadProgress events, then the final Response.
+    return this.http.post<Track>('/api/tracks', body, {
+      observe: 'events',
+      reportProgress: true,
+    });
   }
 
   audio(id: string) {
     return this.http.get(`/api/tracks/${id}/audio`, {
       responseType: 'blob',
     });
+  }
+
+  /** DELETE /api/tracks/:id answers 204 with no body. */
+  remove(id: string) {
+    return this.http.delete<void>(`/api/tracks/${id}`);
   }
 }

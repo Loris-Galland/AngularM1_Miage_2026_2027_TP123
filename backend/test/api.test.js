@@ -41,3 +41,7 @@ test("schémas Mongoose et relation", () => {
   assert.equal(t.title, "Blues");
   assert.equal(Track.schema.path("ownerId").options.ref, "User");
 });
+
+test("plugin aggregate-paginate branché sur Track", () => {
+  assert.equal(typeof Track.aggregatePaginate, "function");
+});

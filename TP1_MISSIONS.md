@@ -81,3 +81,31 @@ Le sujet demande explicitement qu'un composant appelle jamais HttpClient direct,
 À propos de l'IA
 
 Le modèle que j'utilise dans mon assistant c'est Claude Sonnet 5. Pour voir combien j'ai consommé de tokens, y'a la commande /cost dans Claude Code qui donne le coût et la durée de la session. Pour savoir quel est le meilleur modèle pour une tâche donnée, c'est la doc officielle d'Anthropic (platform.claude.com/docs) qui compare les modèles, en gros Haiku pour les trucs simples et rapides, Sonnet pour l'équilibre qualité/coût (c'est celui que j'utilise), et Opus pour les tâches les plus complexes.
+
+Signal ou localStorage, c'est quoi la différence
+
+Les deux gardent le token mais pas pour la même raison. Le localStorage c'est un stockage du navigateur, il survit quand on recharge la page ou qu'on ferme l'onglet, mais il est pas réactif : si sa valeur change, Angular est pas prévenu et rien se met à jour à l'écran. Le signal c'est l'inverse, il vit seulement en mémoire (au refresh il repart de zéro) mais il est réactif : dès qu'on fait token.set(...), tout ce qui l'utilise se met à jour tout seul, par exemple le bouton Déconnexion dans la nav ou l'intercepteur qui lit token(). Du coup AuthService fait les deux : au démarrage il remplit le signal avec ce qu'il y a dans le localStorage, et à chaque login ou logout il met à jour les deux en même temps.
+
+## Checkpoint Network
+
+J'ai fait les captures avec l'onglet Network ouvert et filtré sur Fetch/XHR.
+
+Connexion réussie
+
+POST /api/auth/login avec un corps JSON { email, password } (le mot de passe apparaît jamais sur mes captures). Le serveur répond 200 avec { token, user }. Pas besoin d'Authorization sur cette requête, c'est une route publique : c'est justement elle qui donne le token. Juste après on voit la requête tracks?page=1&limit=5 qui part automatiquement parce que la connexion redirige vers la bibliothèque.
+
+![Connexion réussie en 200](screenshots/tp1/connexion.PNG)
+
+Connexion refusée
+
+Même requête POST /api/auth/login mais avec un mauvais mot de passe. Le serveur répond 401 avec { message: "Identifiants incorrects" }, et c'est ce message là qui s'affiche en rouge sous le formulaire. Dans la console on voit aussi l'erreur loguée par LoginPage avec le status 401.
+
+![Connexion refusée en 401](screenshots/tp1/mdp_faux.PNG)
+
+![Erreur 401 dans la console](screenshots/tp1/mdp_faux2.PNG)
+
+Lecture du profil
+
+GET /api/users/me, sans corps, avec le header Authorization: Bearer suivi du token (ajouté par l'intercepteur, je le montre pas). La réponse c'est l'utilisateur { id, name, email, createdAt }, affiché sur la page. Sur ma capture le statut est 304 et pas 200 : ça veut dire que le serveur a répondu "rien a changé depuis la dernière fois", et le navigateur a réutilisé la réponse qu'il avait en cache. En cochant Disable cache on aurait eu un 200 avec le corps complet.
+
+![Lecture du profil avec GET /api/users/me](screenshots/tp1/profil.PNG)
