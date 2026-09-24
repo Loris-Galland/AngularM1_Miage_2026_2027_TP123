@@ -41,3 +41,27 @@ Note : j'ai fait ce premier TD seul, pas encore en binôme.
 **Preuve de fonctionnement** : compilation Angular réussie à chaque étape (logs `ng serve` vérifiés). Côté backend, tests via `curl` : inscription avec mot de passe trop court → 400, inscription valide → 201 avec token, login → token renvoyé, `GET /api/users/me` avec token valide → 200, avec token invalide → 401. Le rendu complet dans le navigateur (affichage des messages d'erreur, redirection effective sur 401, captures Network) reste à faire par moi-même dans les DevTools pour le rendu final du TP.
 
 **Ce que je sais maintenant expliquer sans l'agent** : pourquoi les validations du formulaire côté front doivent correspondre aux règles du backend, comment fonctionne l'intercepteur qui ajoute le JWT à chaque requête, pourquoi il fallait un intercepteur séparé pour intercepter les réponses 401, où se trouve exactement la logique de mise à jour du profil côté back (`app.js`) et côté front (`auth.service.ts` / `profile-page.ts`), et pourquoi les composants ne doivent jamais appeler `HttpClient` directement.
+
+# Rapport d'usage de l'IA - TP2
+
+Modèle utilisé : Claude Opus 5.5 (`claude-opus-5-5`), via Claude Code.
+
+Les explications détaillées de chaque mission sont dans `TP2_MISSIONS.md`.
+
+## Mission 2 — Bibliothèque paginée
+
+**Objectif** : avoir une bibliothèque paginée côté serveur, avec les Signals `tracks`, `page`, `pages`, `loading` et l'erreur, `@for` / `@empty` / `@if` dans le template, et des boutons Précédent / Suivant désactivés aux bornes, sans modifier le backend et sans découper la liste côté Angular.
+
+**Prompt principal** : j'ai repris la même méthode qu'au TP1 : d'abord ranger mes fichiers audio de test au bon endroit, puis vérifier point par point ce que le starter faisait déjà pour la Mission 2, ne compléter que ce qui manquait, et tout documenter dans `TP2_MISSIONS.md` et ici en m'énonçant clairement chaque étape.
+
+**Plan proposé par l'agent** : lire `track.service.ts`, `tracks-page.ts/html` et la route `GET /api/tracks` dans `app.js` pour voir comment le backend calcule `pages` ; ajouter le signal d'erreur manquant ; séparer l'affichage chargement / liste ; renommer et sécuriser les boutons de pagination ; tester la pagination sur le vrai backend.
+
+**Vérifications réalisées par moi** : j'ai vérifié dans le backend que `pages` vaut toujours au moins 1 (donc pas de bug avec une bibliothèque vide, contrairement à ce qu'on soupçonnait au départ). J'ai relu les modifications du composant et du template avant de les garder. La pagination a été testée sur le backend lancé en local avec `page=1`, `2` et `3`, et les logs serveur montrent bien une requête différente à chaque page.
+
+**Erreurs ou propositions rejetées** : l'hypothèse d'un bug du bouton Suivant avec une bibliothèque vide a été écartée après lecture du backend. Les options avancées (Paginator Angular Material, pagination Mongoose avec `aggregate-paginate-v2`) ne sont pas faites dans cette étape.
+
+**Fichiers effectivement modifiés** : `tracks-page.ts` (signal `error`, constante `limit`, garde dans `go()`), `tracks-page.html` (affichage de l'erreur, `@if/@else` pour le chargement, boutons Précédent / Suivant). Fichiers ajoutés : `coffee-time.mp3` et `summer-breeze.mp3` dans `frontend-starter/fichiers-audio-de-test/`. `track.service.ts` n'a pas eu besoin d'être modifié.
+
+**Preuve de fonctionnement** : build Angular sans erreur ; logs backend `[tracks] Lecture page=1, limit=5`, puis `page=2`, puis `page=3` lors des tests. La capture Network de la pagination dans le navigateur reste à faire par moi une fois qu'il y a plus de 5 pistes sur le compte.
+
+**Ce que je sais maintenant expliquer sans l'agent** : la différence entre une pagination serveur (`skip`/`limit` + `countDocuments` dans Mongo) et un découpage côté client, pourquoi chaque clic sur Précédent / Suivant doit refaire une requête HTTP, comment les Signals pilotent l'affichage du template (`@if`, `@for`, `@empty`), et pourquoi on désactive les boutons pendant un chargement.
