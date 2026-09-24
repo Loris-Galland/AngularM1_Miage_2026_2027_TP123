@@ -83,3 +83,93 @@ Chaque clic sur une flèche ou changement du nombre par page refait toujours une
 Voilà le rendu final avec le paginator en français, sur la page 1 avec 6 pistes : la flèche précédente est grisée et on voit bien "1 – 5 sur 6".
 
 ![Paginator Angular Material](screenshots/tp2/paginator.PNG)
+
+## Mission 3 — Upload et lecture audio
+
+Ici le sujet dit bien de pas refaire ce qui existe déjà et de pas toucher au contrat HTTP. Le starter savait déjà envoyer un fichier et le lire, donc j'ai d'abord repéré où tout se passe, et après j'ai juste complété ce qui manquait côté front.
+
+Où se trouve chaque étape
+
+Le choix du fichier c'est dans tracks-page.html, l'input type file avec (change)="choose($event)", et la méthode choose() dans tracks-page.ts qui récupère le premier fichier sélectionné.
+
+La construction du FormData et l'appel HTTP d'upload c'est dans track.service.ts, la méthode upload(file, title). Elle crée un FormData, fait append('audio', file) et append('title', title), puis un http.post vers /api/tracks. C'est la méthode upload() du composant qui l'appelle.
+
+La récupération du Blob c'est la méthode audio(id) de track.service.ts, un http.get vers /api/tracks/:id/audio avec responseType: 'blob', donc Angular me rend le fichier binaire au lieu d'essayer de le lire comme du JSON.
+
+La création de l'ObjectURL, l'affectation au lecteur et la révocation de l'ancienne URL c'est dans play() de tracks-page.ts : on révoque l'URL précédente avec URL.revokeObjectURL, on crée la nouvelle avec URL.createObjectURL(blob), et on la met dans le signal audioUrl, qui est branché sur le [src] de la balise audio dans le template.
+
+Le flux complet
+
+À l'envoi ça donne : le composant (choose puis upload) → TrackService.upload qui construit le FormData → HttpClient qui fait le POST en multipart/form-data → l'intercepteur qui ajoute le JWT → l'API. Côté backend, Multer lit le multipart, vérifie le fichier, l'écrit sur le disque avec un nom aléatoire, et la route enregistre les infos (titre, nom d'origine, type, taille) dans MongoDB.
+
+À la lecture c'est l'inverse : clic sur Écouter → TrackService.audio → HttpClient fait le GET avec le JWT → l'API vérifie que la piste m'appartient et envoie le fichier → HttpClient me donne un Blob → je crée une ObjectURL (une adresse du genre blob:http://localhost:4200/...) qui pointe vers ce Blob en mémoire → je la donne au lecteur audio.
+
+L'intercepteur et pourquoi un src direct marche pas
+
+C'est authInterceptor dans shared/interceptors/auth.interceptor.ts qui ajoute le header Authorization: Bearer suivi du token à toutes les requêtes faites avec HttpClient. Dans l'onglet Network, sur la requête /api/tracks/.../audio, on voit bien ce header dans les Request Headers.
+
+Si je mettais directement src="/api/tracks/123/audio" sur la balise audio, c'est le navigateur lui-même qui ferait la requête, pas Angular. Du coup ça passe pas par HttpClient, donc pas par l'intercepteur, donc pas de header Authorization. Le navigateur envoie tout seul les cookies, mais nous le token il est dans le localStorage, pas dans un cookie, et y'a aucun moyen de dire à une balise audio d'ajouter un header. Résultat le backend répondrait 401. C'est pour ça qu'on passe par HttpClient + Blob + ObjectURL. Mettre le token dans l'URL (genre ?token=...) serait une mauvaise idée parce qu'il finirait dans l'historique et dans les logs.
+
+Les contrôles du backend
+
+Tout est dans app.js. MAX_FILE_SIZE vaut 25 Mo et est passé à Multer dans limits.fileSize. La liste allowed contient les types MIME acceptés (audio/mpeg, audio/wav, audio/x-wav, audio/ogg, audio/mp4, audio/x-m4a), et le fileFilter de Multer refuse tout le reste avec "Format audio non accepté". upload.single("audio") dit à Multer que le fichier doit être dans le champ audio, et le titre est lu dans req.body.title (si y'a pas de titre il prend le nom du fichier). Si y'a pas de fichier la route répond 400 "Fichier audio requis", et le gestionnaire d'erreurs à la fin transforme les erreurs de Multer (fichier trop gros, mauvais format) en 400.
+
+Côté front j'ai vérifié que le FormData contient exactement les champs audio et title, c'était déjà bon.
+
+La validation avant l'envoi
+
+J'ai créé shared/validators/audio-file.ts avec les mêmes règles que le backend : la même liste de types et la même limite de 25 Mo, et une fonction validateAudioFile() qui renvoie un message d'erreur clair ou null si c'est bon. Je l'appelle dès qu'on choisit un fichier, comme ça l'erreur s'affiche direct et le bouton Envoyer se grise, et je la rappelle dans upload() juste avant l'appel HTTP par sécurité. L'input file a aussi un accept avec les types autorisés pour que la fenêtre de choix propose surtout les bons fichiers.
+
+Pourquoi c'est pas suffisant tout seul : la validation front c'est pour le confort, on sait tout de suite que ça va pas au lieu d'attendre d'avoir envoyé 30 Mo pour rien. Mais n'importe qui peut la contourner, en envoyant la requête avec curl ou Postman, en modifiant le JS dans le navigateur, ou juste en renommant un fichier (le type MIME est deviné par le navigateur à partir de l'extension). Le backend c'est le seul endroit qu'on contrôle vraiment, donc c'est lui qui doit avoir le dernier mot. D'ailleurs j'ai testé avec curl : un fichier texte envoyé direct à l'API donne bien 400 "Format audio non accepté", et un envoi sans fichier donne 400 "Fichier audio requis".
+
+Pendant l'envoi
+
+J'ai transformé file en signal et ajouté les signaux uploading, fileError (erreur de validation), uploadError (erreur du serveur) et uploadSuccess. Pendant l'envoi le bouton affiche "Envoi en cours…" et est désactivé, l'input fichier aussi, et upload() sort direct si un envoi est déjà en cours, donc pas de double envoi possible même en cliquant vite. Si le serveur répond une erreur, son message s'affiche. J'ai bien séparé l'erreur de validation et l'erreur serveur, sinon après une erreur serveur le bouton restait bloqué et on pouvait pas réessayer. Si ça marche, un message de succès s'affiche avec le titre, le titre et le fichier sont vidés, y compris l'input fichier lui-même (avant il affichait encore l'ancien nom) grâce à un viewChild, et on recharge la page 1.
+
+Les cards
+
+Avant c'était une simple liste avec le titre et "3605337 Ko", sauf que la taille renvoyée par l'API c'est des octets, pas des Ko. Maintenant chaque piste est une card dans une grille responsive (repeat(auto-fill, minmax(200px, 1fr)), donc plusieurs colonnes sur grand écran et une seule sur téléphone). Une card affiche le titre, le nom d'origine du fichier, le format, la taille et la date d'ajout, plus un bouton Écouter.
+
+Pour le format et la taille j'ai fait deux petits pipes dans shared/pipes : audioFormat qui transforme audio/mpeg en MP3, et fileSize qui transforme les octets en Ko ou Mo (3605337 octets ça donne 3,4 Mo). La date passe par le DatePipe d'Angular.
+
+Pour l'accessibilité, les pistes sont dans une vraie liste ul/li, les infos dans une liste de définitions dl/dt/dd, chaque bouton a un aria-label "Écouter + titre" pour qu'un lecteur d'écran sache quelle piste il lance, le focus clavier est bien visible, et la card en cours de lecture a aria-current en plus d'un contour vert.
+
+La lecture
+
+Le mécanisme était déjà là, j'ai complété ce qui manquait. Au-dessus des cards y'a maintenant "En cours : titre" avec le lecteur. Pendant le téléchargement du fichier le bouton de la piste affiche "Chargement…". Si la requête échoue j'affiche un message clair : avec un 404 ça veut dire que la piste existe pas ou appartient à quelqu'un d'autre. Si le fichier arrive mais que le navigateur arrive pas à le lire, l'événement (error) de la balise audio affiche aussi un message.
+
+Et le dernier truc qui manquait : révoquer l'ObjectURL finale quand on quitte la page. play() révoquait déjà l'ancienne URL à chaque nouvelle lecture, mais la dernière restait en mémoire pour toujours. J'ai ajouté un DestroyRef.onDestroy qui la révoque quand le composant est détruit.
+
+J'ai aussi vérifié qu'une piste peut être lue que par son propriétaire : j'ai créé un deuxième compte (proprio-test@example.com) et j'ai essayé de lire une piste du compte demo avec son token, le serveur répond 404 "Piste inconnue", et ce compte voit 0 piste dans sa liste. C'est parce que la route cherche la piste avec son id ET ownerId égal à l'utilisateur du token.
+
+Blob, buffering et streaming, la différence
+
+Télécharger un Blob complet c'est ce qu'on fait avec HttpClient : on attend d'avoir tout le fichier en mémoire avant de pouvoir faire quoi que ce soit avec. Le buffering c'est ce que fait le navigateur quand il lit un son depuis une URL HTTP : il télécharge un peu d'avance, commence à jouer, et continue à charger pendant la lecture. Le streaming côté serveur c'est quand le serveur envoie le fichier par morceaux au lieu de le charger en entier dans sa mémoire avant, et qu'il sait répondre à une demande du genre "donne moi juste les octets 1000 à 2000" (les requêtes Range).
+
+## Mission 3 — Questions sur mémoire, buffering et streaming
+
+Le backend envoie-t-il le fichier entier en mémoire ou progressivement depuis le disque ?
+
+Progressivement. La route utilise res.sendFile(), qui lit le fichier sur le disque avec un flux et l'envoie morceau par morceau, sans jamais le charger en entier dans la mémoire du serveur. En plus il gère les requêtes Range : j'ai testé avec curl, la réponse normale a Accept-Ranges: bytes et Content-Length: 3605337, et si je demande juste les octets 0 à 1023 il répond 206 Partial Content avec Content-Range: bytes 0-1023/3605337.
+
+Avec HttpClient et responseType "blob", à quel moment le composant reçoit-il le fichier ?
+
+À la fin, une fois que tout le fichier est téléchargé. Même si le serveur envoie en flux, HttpClient accumule tout, et l'Observable émet une seule fois quand la réponse est complète. Donc le next() de play() est appelé qu'une fois les 3 ou 6 Mo arrivés, et la lecture peut commencer seulement à ce moment là. Pour des petits fichiers ça va, pour un morceau de 25 Mo sur une connexion lente on attendrait longtemps avant d'entendre quoi que ce soit.
+
+Avec 100 morceaux, les 100 fichiers sont-ils chargés en mémoire dès l'affichage de la liste ?
+
+Non. Déjà la liste est paginée, donc on en affiche 5, 10 ou 20 max. Et surtout, TrackService.list() appelle GET /api/tracks qui renvoie que les métadonnées en JSON (titre, nom, taille, date…), pas les fichiers. Le fichier audio est téléchargé seulement dans play(), donc quand on clique sur Écouter, et pour cette piste là uniquement. Et comme play() révoque l'ancienne URL avant d'en créer une nouvelle, y'a au maximum un seul Blob audio gardé en mémoire à la fois.
+
+Quelle différence avec 100 éléments audio utilisant directement une URL HTTP ?
+
+D'abord ça marcherait même pas ici : comme expliqué plus haut, le navigateur enverrait pas le JWT, donc 401 partout. Mais en imaginant une route publique, chaque balise audio fait ses propres requêtes. Selon l'attribut preload, le navigateur peut lancer une requête pour chacune des 100 dès l'affichage (au moins pour les métadonnées, voire le début du fichier), donc beaucoup de trafic pour rien. Par contre l'avantage c'est que le navigateur gère le buffering et les Range tout seul : la lecture commence avant la fin du téléchargement, on peut sauter au milieu du morceau sans tout charger, et il libère la mémoire lui-même.
+
+Pourquoi l'URL créée par URL.createObjectURL doit-elle être révoquée ?
+
+Parce que tant qu'elle existe, le navigateur garde le Blob en mémoire, même si plus aucune variable pointe dessus : l'URL elle-même est une référence. Normalement ça se nettoie quand on ferme ou recharge la page, mais dans une SPA Angular on recharge jamais la page, on change juste de composant. Donc sans revokeObjectURL, chaque morceau écouté resterait en mémoire (plusieurs Mo à chaque fois) jusqu'à la fermeture de l'onglet, c'est une fuite mémoire. C'est pour ça qu'on révoque l'ancienne à chaque nouvelle lecture et la dernière à la destruction du composant.
+
+## Mission 3 — Pourquoi Blob et ObjectURL
+
+En gros on avait un problème : les fichiers audio sont protégés par le JWT, et une balise audio avec un src normal peut pas envoyer ce JWT. La solution c'est de télécharger le fichier nous-mêmes avec HttpClient, qui passe par l'intercepteur et envoie donc le token. HttpClient nous rend le fichier sous forme de Blob, c'est juste des données binaires en mémoire. Sauf que la balise audio elle veut une URL, pas un Blob. URL.createObjectURL sert à ça : ça crée une URL locale blob:... qui pointe vers le Blob, et le lecteur peut la lire comme n'importe quelle URL, sans refaire de requête.
+
+Les inconvénients c'est qu'il faut attendre que tout le fichier soit téléchargé avant de lire, que le fichier entier est en mémoire dans le navigateur, et qu'il faut penser à révoquer l'URL. Pour des fichiers de 25 Mo max c'est acceptable. Pour de gros fichiers, on pourrait passer à un token court dans un cookie, ou une URL signée temporaire, pour laisser le navigateur faire du vrai streaming.

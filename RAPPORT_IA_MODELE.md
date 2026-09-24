@@ -75,3 +75,21 @@ Pour les options avancées : `npm test` du backend passe (3 tests sur 3), et les
 ![Paginator Angular Material en français](screenshots/tp2/paginator.PNG)
 
 **Ce que je sais maintenant expliquer sans l'agent** : la différence entre une pagination serveur (`skip`/`limit` + `countDocuments` dans Mongo) et un découpage côté client, pourquoi chaque clic sur Précédent / Suivant doit refaire une requête HTTP, comment les Signals pilotent l'affichage du template (`@if`, `@for`, `@empty`), et pourquoi on désactive les boutons pendant un chargement. Pour les options avancées : ce que fait un pipeline d'agrégation (`$match`, `$sort`, `$project`) et pourquoi il faut convertir l'id en `ObjectId` à la main, à quoi servent les `customLabels` du plugin pour ne pas casser le contrat, pourquoi le Paginator compte à partir de 0 alors que l'API commence à 1, et comment `MatPaginatorIntl` permet de traduire le composant.
+
+## Mission 3 — Upload et lecture audio
+
+**Objectif** : identifier où se passent le choix du fichier, le `FormData`, l'upload, le `Blob`, l'`ObjectURL`, le lecteur et la révocation ; expliquer l'intercepteur JWT et les contrôles du backend ; puis compléter seulement ce qui manquait côté frontend (validation avant envoi, états pendant l'upload, cards accessibles, morceau en cours, erreurs audio, révocation finale) et répondre aux questions sur la mémoire, le buffering et le streaming.
+
+**Prompt principal** : je voulais que la Mission 3 soit faite comme la 2 : d'abord repérer dans le code ce qui existait déjà côté backend et frontend, ne rien refaire et ne pas toucher au contrat HTTP, compléter le front point par point avec un commit par fonctionnalité sur la branche `tp2`, et tout expliquer dans `TP2_MISSIONS.md` avec mes mots.
+
+**Plan proposé par l'agent** : lire `app.js` (Multer, `allowed`, `MAX_FILE_SIZE`, routes upload / audio, gestionnaire d'erreurs), `track.service.ts`, `auth.interceptor.ts` et `tracks-page.*` ; créer un validateur partagé qui reprend les règles du backend ; ajouter les signaux de l'upload ; transformer la liste en cards avec des pipes de formatage ; compléter la lecture ; vérifier les points du checkpoint avec `curl` ; rédiger l'analyse et les réponses.
+
+**Vérifications réalisées par moi** : j'ai relu les modifications et les explications. Les points du checkpoint ont été vérifiés côté serveur avec `curl` : un fichier texte renvoie 400 « Format audio non accepté », un envoi sans fichier renvoie 400 « Fichier audio requis », la lecture renvoie `200` en `audio/mpeg` avec `Accept-Ranges: bytes`, une demande `Range` renvoie `206 Partial Content`, sans token on a 401, et avec le token d'un deuxième compte de test la piste du compte demo renvoie 404. Le rendu dans le navigateur (cards, messages, lecteur) et les captures Network restent à faire par moi.
+
+**Erreurs ou propositions rejetées** : une première version utilisait un seul signal d'erreur pour la validation et pour les erreurs serveur ; ça bloquait le bouton Envoyer après une erreur serveur, donc on a séparé `fileError` et `uploadError`. Mettre le token dans l'URL du `<audio>` a été écarté, parce qu'il finirait dans l'historique et dans les logs.
+
+**Fichiers effectivement modifiés** : `tracks-page.ts`, `tracks-page.html`, `tracks-page.css`, `styles.css`, et les nouveaux fichiers `shared/validators/audio-file.ts`, `shared/pipes/file-size.pipe.ts` et `shared/pipes/audio-format.pipe.ts`. Aucun fichier backend ni `track.service.ts` n'a été modifié pour cette mission.
+
+**Preuve de fonctionnement** : build Angular sans erreur et tests `curl` ci-dessus. Captures Network à ajouter dans `screenshots/tp2/`.
+
+**Ce que je sais maintenant expliquer sans l'agent** : le trajet d'un fichier de l'input jusqu'au disque du serveur et à MongoDB, pourquoi un `src` direct n'envoie pas le JWT et comment `Blob` + `ObjectURL` contournent le problème, pourquoi la validation frontend ne remplace jamais celle du backend, la différence entre télécharger un Blob complet, le buffering du navigateur et le streaming côté serveur (requêtes `Range`, réponse 206), et pourquoi il faut révoquer une `ObjectURL` dans une SPA.
