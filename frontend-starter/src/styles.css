@@ -28,6 +28,10 @@ button:disabled { opacity: 0.45; }
 audio { width: 100%; }
 .error { color: #a33; }
 
+/* Paginator Material : couleurs du site et annulation du style global des boutons. */
+.mat-mdc-paginator { --mat-sys-primary: #1d755e; margin-top: 1rem; background: transparent; }
+:where(.mat-mdc-paginator) button { padding: 0; color: inherit; background: none; border-radius: 50%; }
+
 @media (max-width: 720px) {
   header, .grid { display: block; }
   nav { margin-top: 1rem; }
