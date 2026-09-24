@@ -93,3 +93,21 @@ Pour les options avancées : `npm test` du backend passe (3 tests sur 3), et les
 **Preuve de fonctionnement** : build Angular sans erreur et tests `curl` ci-dessus. Captures Network à ajouter dans `screenshots/tp2/`.
 
 **Ce que je sais maintenant expliquer sans l'agent** : le trajet d'un fichier de l'input jusqu'au disque du serveur et à MongoDB, pourquoi un `src` direct n'envoie pas le JWT et comment `Blob` + `ObjectURL` contournent le problème, pourquoi la validation frontend ne remplace jamais celle du backend, la différence entre télécharger un Blob complet, le buffering du navigateur et le streaming côté serveur (requêtes `Range`, réponse 206), et pourquoi il faut révoquer une `ObjectURL` dans une SPA.
+
+## Améliorations facultatives
+
+**Objectif** : faire toutes les améliorations facultatives du sujet : barre de progression de l'upload, suppression avec confirmation, rafraîchissement après suppression, formatage lisible de la taille et de la date (déjà fait en Mission 3), et filtre par titre.
+
+**Prompt principal** : j'ai demandé de faire toutes les améliorations facultatives, sans pousser directement, en me demandant mon avis sur les choix à faire et en m'expliquant chaque étape.
+
+**Plan proposé par l'agent** : une amélioration par commit ; `reportProgress` + `observe: 'events'` pour la progression ; la route `DELETE` qui existait déjà, avec une dialog de confirmation ; un paramètre `?q=` côté serveur pour le filtre ; tests `curl` à chaque étape.
+
+**Vérifications réalisées par moi** : l'agent m'a posé deux questions et c'est moi qui ai choisi : une dialog Angular Material plutôt que `window.confirm()`, et un filtre côté serveur (`?q=`) plutôt qu'un filtre sur la page affichée, pour garder une vraie pagination serveur. Tests `curl` : suppression 204 puis 404, liste mise à jour ; filtre insensible aux majuscules, caractères spéciaux échappés (`.*` ne renvoie rien, `(` ne fait pas planter le serveur), `q` envoyé en double ignoré ; `npm test` du backend passe. Le rendu dans le navigateur reste à vérifier par moi.
+
+**Erreurs ou propositions rejetées** : le filtre sur la page affichée seulement a été écarté, parce qu'il ne trouve pas les pistes des autres pages et qu'il ressemble au découpage local interdit par le sujet. `window.confirm()` a été écarté au profit de la dialog Material.
+
+**Fichiers effectivement modifiés** : `track.service.ts` (`upload` avec les événements de progression, `remove`, `list` avec `q`), `tracks-page.ts/html/css`, le nouveau `shared/components/confirm-dialog/confirm-dialog.ts`, `backend/src/app.js` (paramètre `q` sur `GET /api/tracks`) et `API_CONTRACT.md`.
+
+**Preuve de fonctionnement** : build Angular sans erreur, tests backend 3/3, et tests `curl` ci-dessus. Captures à ajouter.
+
+**Ce que je sais maintenant expliquer sans l'agent** : comment `reportProgress` et `HttpEventType` permettent de suivre un upload, comment une `MatDialog` renvoie un résultat avec `afterClosed()`, pourquoi un filtre doit être fait côté serveur quand la liste est paginée, pourquoi il faut échapper une saisie avant d'en faire une regex MongoDB, et à quoi servent `debounceTime`, `distinctUntilChanged` et l'annulation de la requête précédente.

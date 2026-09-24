@@ -173,3 +173,29 @@ Parce que tant qu'elle existe, le navigateur garde le Blob en mémoire, même si
 En gros on avait un problème : les fichiers audio sont protégés par le JWT, et une balise audio avec un src normal peut pas envoyer ce JWT. La solution c'est de télécharger le fichier nous-mêmes avec HttpClient, qui passe par l'intercepteur et envoie donc le token. HttpClient nous rend le fichier sous forme de Blob, c'est juste des données binaires en mémoire. Sauf que la balise audio elle veut une URL, pas un Blob. URL.createObjectURL sert à ça : ça crée une URL locale blob:... qui pointe vers le Blob, et le lecteur peut la lire comme n'importe quelle URL, sans refaire de requête.
 
 Les inconvénients c'est qu'il faut attendre que tout le fichier soit téléchargé avant de lire, que le fichier entier est en mémoire dans le navigateur, et qu'il faut penser à révoquer l'URL. Pour des fichiers de 25 Mo max c'est acceptable. Pour de gros fichiers, on pourrait passer à un token court dans un cookie, ou une URL signée temporaire, pour laisser le navigateur faire du vrai streaming.
+
+## Améliorations facultatives
+
+J'ai fait toutes celles proposées par le sujet. Le formatage lisible de la taille et de la date était déjà fait pendant la Mission 3 avec les pipes fileSize et audioFormat et le DatePipe, donc il restait la barre de progression, la suppression et le filtre.
+
+La barre de progression de l'upload
+
+Par défaut HttpClient renvoie juste la réponse finale. Dans TrackService.upload() j'ai ajouté observe: 'events' et reportProgress: true, du coup l'Observable émet plein d'événements pendant l'envoi. Dans le composant je regarde le type de chaque événement : si c'est un UploadProgress, je calcule le pourcentage avec loaded / total et je le mets dans un signal progress, et si c'est la Response finale, je récupère la piste dans event.body et je fais comme avant (message de succès, formulaire vidé, page 1). La barre c'est une balise progress native, avec un aria-label pour les lecteurs d'écran, et le pourcentage écrit à côté. Quand on arrive à 100 % j'affiche "Fichier reçu, enregistrement en cours…", parce qu'à ce moment là le navigateur a fini d'envoyer mais le serveur doit encore écrire dans MongoDB. En local ça va super vite, donc pour la voir avancer faut activer le throttling "Slow 4G" dans l'onglet Network.
+
+La suppression avec confirmation
+
+La route DELETE /api/tracks/:id existait déjà dans le backend (elle supprime la fiche dans MongoDB et le fichier sur le disque, et vérifie aussi que la piste appartient à l'utilisateur), il manquait juste le front. J'ai ajouté remove(id) dans TrackService, et un bouton Supprimer rouge sur chaque card.
+
+Pour la confirmation j'ai choisi une dialog Angular Material plutôt que le window.confirm() du navigateur, parce que c'est plus joli, cohérent avec le paginator, et accessible : le focus reste dans la fenêtre, Échap annule, et le focus part par défaut sur Annuler pour pas supprimer par erreur en tapant Entrée. J'ai fait un composant ConfirmDialogComponent générique dans shared/components, qui reçoit un titre, un message et le texte du bouton, et qui renvoie true si on confirme. Comme ça il pourra resservir pour d'autres confirmations.
+
+Après la suppression la liste est rechargée depuis le serveur et un message "« titre » a été supprimée" s'affiche. Deux cas particuliers que j'ai gérés : si je supprime la piste en train d'être lue, le lecteur est coupé et son ObjectURL révoquée, et si je supprime la dernière piste d'une page qui est pas la première, on revient à la page d'avant au lieu d'afficher une page vide. Si le serveur répond une erreur (par exemple la fiche supprimée mais pas le fichier), le message s'affiche et la liste est rechargée quand même pour rester à jour.
+
+Testé avec curl sur le compte de test : le premier DELETE répond 204, le deuxième 404 parce que la piste existe plus, et la liste retombe à 0.
+
+Le filtre par titre
+
+Pour garder une vraie pagination serveur, j'ai fait le filtre côté backend et pas en filtrant les pistes déjà affichées, sinon on trouverait jamais les pistes des autres pages. GET /api/tracks accepte maintenant un paramètre optionnel q. Si il est là, le backend ajoute une condition sur le titre dans le $match du pipeline d'agrégation, avec une regex insensible aux majuscules. Et du coup total et pages sont calculés sur les résultats filtrés, donc le paginator reste juste. J'ai documenté le paramètre dans API_CONTRACT.md.
+
+Côté sécurité j'ai fait attention à deux trucs. Le q doit être une chaîne (si quelqu'un envoie ?q=a&q=b ça fait un tableau, et on l'ignore) et il est coupé à 100 caractères. Et surtout les caractères spéciaux des regex sont échappés avant de construire la requête : sans ça, quelqu'un pourrait taper .* pour tout matcher, ou une regex volontairement très lente pour bloquer le serveur. J'ai testé : "song" et "SONG" donnent les mêmes 3 pistes, "coffee" en donne 1, ".*" en donne 0 parce qu'il est cherché tel quel, et "(" fait pas planter le serveur.
+
+Côté front, y'a un champ "Rechercher par titre" au-dessus des cards. Pour pas envoyer une requête à chaque lettre tapée, j'utilise valueChanges avec debounceTime(300) : on attend 300 ms sans frappe avant de chercher, avec distinctUntilChanged pour pas relancer la même recherche, et takeUntilDestroyed pour arrêter d'écouter quand on quitte la page. À chaque nouvelle recherche on repart de la page 1. J'ai aussi fait en sorte que load() annule la requête précédente si elle est pas finie, sinon une vieille réponse lente pourrait arriver après la nouvelle et écraser les bons résultats. Et si rien correspond, ça affiche "Aucune piste ne correspond à « … »".
