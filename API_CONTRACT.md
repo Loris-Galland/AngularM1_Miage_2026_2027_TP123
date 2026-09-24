@@ -16,6 +16,25 @@ Le contrat HTTP ne dépend pas du choix de persistance : le backend fourni utili
 | GET | `/tracks/:id/audio` | JWT | flux audio |
 | DELETE | `/tracks/:id` | JWT | `204` (bonus) |
 
-`Page<Track>` contient `items`, `page`, `limit`, `total` et `pages`. Formats acceptés : MP3, WAV, OGG et M4A, 25 Mo maximum.
+`GET /tracks` : paramètres de requête `page` (entier ≥ 1, défaut 1) et `limit` (entier entre 1 et 20, défaut 5), JWT obligatoire, seules les pistes de l'utilisateur connecté sont renvoyées, triées de la plus récente à la plus ancienne. Erreurs : `401` sans JWT valide.
+
+`Page<Track>` (pagination faite avec le plugin `mongoose-aggregate-paginate-v2`) contient :
+
+```json
+{
+  "items": [Track],
+  "total": 6,
+  "limit": 5,
+  "page": 2,
+  "pages": 2,
+  "pagingCounter": 6,
+  "hasPrevPage": true,
+  "hasNextPage": false,
+  "prevPage": 1,
+  "nextPage": null
+}
+```
+
+`pages` vaut au moins 1 même sans piste, `pagingCounter` est le numéro de la première piste de la page, et `prevPage` / `nextPage` valent `null` aux bornes. Formats acceptés : MP3, WAV, OGG et M4A, 25 Mo maximum.
 
 Erreurs courantes : `400` validation, `401` authentification, `404` ressource, `409` email déjà utilisé.
