@@ -25,3 +25,4 @@ dd { margin: 0; font-weight: 600; }
 .actions .delete { color: #a33; background: transparent; border: 1px solid #a33; }
 .track-card button:focus-visible { outline: 3px solid #123d32; outline-offset: 2px; }
 .empty { color: #61756f; }
+.search { margin: 0.5rem 0 0; }

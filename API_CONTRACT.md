@@ -16,7 +16,7 @@ Le contrat HTTP ne dépend pas du choix de persistance : le backend fourni utili
 | GET | `/tracks/:id/audio` | JWT | flux audio |
 | DELETE | `/tracks/:id` | JWT | `204` (bonus) |
 
-`GET /tracks` : paramètres de requête `page` (entier ≥ 1, défaut 1) et `limit` (entier entre 1 et 20, défaut 5), JWT obligatoire, seules les pistes de l'utilisateur connecté sont renvoyées, triées de la plus récente à la plus ancienne. Erreurs : `401` sans JWT valide.
+`GET /tracks` : paramètres de requête `page` (entier ≥ 1, défaut 1), `limit` (entier entre 1 et 20, défaut 5) et `q` (optionnel, texte de 100 caractères maximum : ne garde que les pistes dont le titre contient ce texte, sans tenir compte des majuscules ; `total` et `pages` sont calculés sur les pistes filtrées), JWT obligatoire, seules les pistes de l'utilisateur connecté sont renvoyées, triées de la plus récente à la plus ancienne. Erreurs : `401` sans JWT valide.
 
 `Page<Track>` (pagination faite avec le plugin `mongoose-aggregate-paginate-v2`) contient :
 

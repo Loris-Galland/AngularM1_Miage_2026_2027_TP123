@@ -273,14 +273,24 @@ export function createApp() {
     try {
       const page = Math.max(1, Number(req.query.page) || 1);
       const limit = Math.min(20, Math.max(1, Number(req.query.limit) || 5));
+      // Filtre optionnel par titre : uniquement une chaîne, 100 caractères maximum.
+      const q = typeof req.query.q === "string" ? req.query.q.trim().slice(0, 100) : "";
 
-      console.log(`[tracks] Lecture page=${page}, limit=${limit}, user=${req.auth.sub}`);
+      console.log(`[tracks] Lecture page=${page}, limit=${limit}, q=${JSON.stringify(q)}, user=${req.auth.sub}`);
+
+      const match = { ownerId: new mongoose.Types.ObjectId(req.auth.sub) };
+      if (q) {
+        // Les caractères spéciaux sont échappés : la saisie est cherchée telle quelle,
+        // l'utilisateur ne peut pas injecter sa propre expression régulière.
+        const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        match.title = { $regex: escaped, $options: "i" };
+      }
 
       // Pipeline d'agrégation : les pistes de l'utilisateur, les plus récentes d'abord,
       // sans storedName. Contrairement à find(), aggregate() ne convertit pas l'id
       // automatiquement, d'où le new mongoose.Types.ObjectId().
       const aggregate = Track.aggregate([
-        { $match: { ownerId: new mongoose.Types.ObjectId(req.auth.sub) } },
+        { $match: match },
         { $sort: { createdAt: -1 } },
         { $project: { storedName: 0 } },
       ]);

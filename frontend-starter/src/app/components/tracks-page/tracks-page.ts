@@ -1,6 +1,8 @@
 import { Component, DestroyRef, ElementRef, inject, signal, viewChild } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { HttpEventType } from '@angular/common/http';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { debounceTime, distinctUntilChanged, map, Subscription } from 'rxjs';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatDialog } from '@angular/material/dialog';
@@ -36,6 +38,9 @@ export class TracksPageComponent {
   readonly audioError = signal('');
   readonly deletingId = signal<string | null>(null);
   readonly notice = signal('');
+  readonly search = new FormControl('', { nonNullable: true });
+  readonly query = signal('');
+  private listRequest?: Subscription;
   readonly title = new FormControl('', { nonNullable: true });
   readonly file = signal<File | null>(null);
   readonly uploading = signal(false);
@@ -48,6 +53,20 @@ export class TracksPageComponent {
 
   constructor() {
     this.load();
+
+    // Waits 300 ms after the last key before asking the server, and restarts from page 1.
+    this.search.valueChanges
+      .pipe(
+        map((value) => value.trim()),
+        debounceTime(300),
+        distinctUntilChanged(),
+        takeUntilDestroyed(),
+      )
+      .subscribe((query) => {
+        this.query.set(query);
+        this.page.set(1);
+        this.load();
+      });
 
     // The last ObjectURL keeps the whole Blob in memory until it is revoked.
     inject(DestroyRef).onDestroy(() => {
@@ -68,7 +87,9 @@ export class TracksPageComponent {
   load(): void {
     this.loading.set(true);
     this.error.set('');
-    this.service.list(this.page(), this.limit()).subscribe({
+    // Cancels the previous request so an old answer can never overwrite a newer one.
+    this.listRequest?.unsubscribe();
+    this.listRequest = this.service.list(this.page(), this.limit(), this.query()).subscribe({
       next: (response) => {
         console.debug('[TracksPage] Pistes chargées', response.items.length);
         this.tracks.set(response.items);

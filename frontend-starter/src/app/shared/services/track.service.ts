@@ -8,9 +8,10 @@ import { Track } from '../models/track.model';
 export class TrackService {
   private readonly http = inject(HttpClient);
 
-  list(page = 1, limit = 5) {
+  /** q is optional: the backend filters by title before paginating. */
+  list(page = 1, limit = 5, q = '') {
     return this.http.get<Page<Track>>('/api/tracks', {
-      params: { page, limit },
+      params: q ? { page, limit, q } : { page, limit },
     });
   }
 
