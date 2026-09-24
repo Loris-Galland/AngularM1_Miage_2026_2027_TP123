@@ -221,3 +221,35 @@ Côté front, y'a un champ "Rechercher par titre" au-dessus des cards. Pour pas 
 Sur la capture j'ai tapé "song" et on voit la requête tracks?page=1&limit=5&q=song partir vers le serveur.
 
 ![Filtre par titre envoyé au serveur](screenshots/tp2/recherche_son.PNG)
+
+## AVANCÉ — Image de couverture
+
+Le sujet proposait deux façons de faire : laisser l'utilisateur uploader une image, ou chercher la pochette tout seul avec les tags ID3 et un service web. J'ai choisi l'upload, parce que c'est moi qui contrôle l'image, y'a pas de dépendance à un service extérieur, et pas de souci de droits sur des images trouvées sur internet (mes mp3 "no copyright" ont de toute façon pas de pochette dans leurs tags).
+
+Ce qui change dans les données et dans l'API
+
+Le sujet demande de réfléchir à ça avant de coder, donc je l'ai fait en premier.
+
+Côté données, le modèle Track a deux nouveaux champs. coverName c'est le nom du fichier image sur le disque : il est aléatoire et en select: false, exactement comme storedName pour l'audio, donc il sort jamais de la base par erreur. Et coverType c'est le type de l'image (image/png…). Le front a juste besoin de savoir s'il y a une image ou pas, donc toPublic() renvoie un booléen hasCover, calculé à partir de coverType. Dans le pipeline de GET /api/tracks j'ai ajouté un $addFields qui calcule le même hasCover avant de masquer les champs de couverture. Les anciennes pistes ont pas de couverture, elles ont juste hasCover à false, donc pas besoin de migrer quoi que ce soit.
+
+Côté API, j'ai pas touché à POST /api/tracks parce que c'est le contrat des missions principales. La couverture a ses deux routes à elle : PUT /api/tracks/:id/cover pour ajouter ou remplacer l'image (multipart avec un champ cover), et GET /api/tracks/:id/cover pour la récupérer. Et DELETE /api/tracks/:id supprime maintenant aussi le fichier image. L'avantage de séparer c'est que je peux ajouter une image au moment de l'envoi (le front fait juste deux requêtes à la suite) mais aussi plus tard sur une piste qui existe déjà. Tout est documenté dans API_CONTRACT.md.
+
+La sécurité
+
+Une image c'est un fichier envoyé par l'utilisateur, donc je l'ai traitée aussi sérieusement que l'audio. Multer a une deuxième config juste pour les couvertures : 2 Mo maximum, et seulement JPEG, PNG ou WebP. J'ai volontairement refusé le SVG parce qu'un SVG c'est du XML qui peut contenir du JavaScript, donc un risque de faille XSS.
+
+Mais le type MIME c'est le navigateur (ou curl) qui le déclare, donc on peut mentir. Du coup après l'upload, le serveur lit les premiers octets du fichier, sa "signature" : un JPEG commence toujours par FF D8 FF, un PNG par 89 50 4E 47, un WebP par RIFF….WEBP. Si ça correspond pas, le fichier est supprimé et on répond 400. Les deux routes demandent le JWT et vérifient que la piste appartient à l'utilisateur (sinon 404), comme pour l'audio. Si quoi que ce soit échoue après l'écriture du fichier, il est supprimé pour pas laisser de fichier orphelin, et quand on remplace une image l'ancienne est supprimée du disque. En lecture j'envoie aussi le header X-Content-Type-Options: nosniff, pour que le navigateur essaie pas de deviner un autre type que celui annoncé.
+
+J'ai tout testé avec curl sur le compte de test : une vraie image PNG donne 200 avec hasCover à true, la lecture renvoie image/png avec nosniff, un fichier texte renommé en .png donne 400 "Le fichier n'est pas une image valide", une image de plus de 2 Mo donne 400, un SVG donne 400, sans fichier 400, sans token 401, et avec le token du compte demo 404 en lecture comme en envoi. J'ai aussi compté les fichiers dans data/uploads : un envoi refusé ou un remplacement laisse aucun fichier en trop, et supprimer la piste enlève bien l'audio et l'image. J'ai ajouté un test backend qui vérifie que toPublic() renvoie hasCover mais jamais coverName ni storedName, les 4 tests passent.
+
+Côté front
+
+Dans le formulaire Importer y'a un nouveau champ facultatif "Image de couverture", avec un validateur image-file.ts qui reprend les mêmes règles que le backend, comme pour l'audio. Si l'image est pas bonne, l'erreur s'affiche direct et le bouton Envoyer se grise. Quand l'audio est envoyé, si une image a été choisie, j'enchaîne avec le PUT de la couverture. Si seule l'image échoue, la piste est quand même créée et un message dit qu'on peut réessayer depuis la card.
+
+Sur chaque card l'image s'affiche en haut en carré. Si y'a pas d'image, c'est une vignette neutre avec une note de musique. En dessous des boutons y'a "Ajouter une image" ou "Changer l'image", qui ouvre directement le choix de fichier et met à jour juste cette card.
+
+Comme l'audio, l'image est protégée par le JWT, donc une balise img avec un src direct marcherait pas pour la même raison que la balise audio. J'utilise le même principe : je récupère l'image en Blob avec HttpClient et je crée une ObjectURL. Après chaque chargement de liste, je demande seulement les images des pistes affichées qui ont hasCover à true. Et vu que chaque ObjectURL garde l'image en mémoire, je les révoque toutes à chaque changement de page et quand on quitte la page, et j'annule les requêtes d'images pas encore finies.
+
+Accessibilité et droits
+
+Chaque image a un alt "Pochette de" + le titre. La vignette sans image est en aria-hidden parce qu'elle est juste décorative. Le bouton pour changer l'image c'est en vrai un input file caché visuellement mais toujours accessible au clavier, avec un aria-label qui dit sur quelle piste il agit, et un contour visible quand il a le focus. Pour les droits, y'a une phrase sous le champ qui rappelle d'utiliser une image dont on a les droits, et l'appli va jamais chercher d'image sur internet toute seule.
