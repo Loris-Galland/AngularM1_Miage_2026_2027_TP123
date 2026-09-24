@@ -79,3 +79,7 @@ Le paginator est désactivé pendant un chargement, et ses flèches sont grisée
 Par défaut les textes du paginator sont en anglais ("Items per page", "1 – 5 of 6"). J'ai créé une classe FrenchPaginatorIntl dans shared/i18n qui hérite de MatPaginatorIntl pour tout mettre en français ("Pistes par page", "1 – 5 sur 6", "Page suivante"...), et je l'ai fournie dans main.ts, comme ça ça s'applique à tous les paginators de l'appli.
 
 Chaque clic sur une flèche ou changement du nombre par page refait toujours une vraie requête au serveur avec page et limit, c'est toujours le backend qui découpe.
+
+Voilà le rendu final avec le paginator en français, sur la page 1 avec 6 pistes : la flèche précédente est grisée et on voit bien "1 – 5 sur 6".
+
+![Paginator Angular Material](screenshots/tp2/paginator.PNG)

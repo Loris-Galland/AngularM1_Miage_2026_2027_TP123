@@ -70,6 +70,8 @@ Les explications détaillées de chaque mission sont dans `TP2_MISSIONS.md`.
 
 ![Interface sur la dernière page, Suivant désactivé](screenshots/tp2/pagination_interface.PNG)
 
-Pour les options avancées : `npm test` du backend passe (3 tests sur 3), et les appels `curl` sur la nouvelle route renvoient `total: 6`, `pages: 2`, `hasNextPage` / `hasPrevPage` corrects, sans `storedName` ni `_id`, et 401 sans token. Le build Angular avec Material passe sans erreur.
+Pour les options avancées : `npm test` du backend passe (3 tests sur 3), et les appels `curl` sur la nouvelle route renvoient `total: 6`, `pages: 2`, `hasNextPage` / `hasPrevPage` corrects, sans `storedName` ni `_id`, et 401 sans token. Le build Angular avec Material passe sans erreur, et j'ai vérifié le rendu dans le navigateur :
+
+![Paginator Angular Material en français](screenshots/tp2/paginator.PNG)
 
 **Ce que je sais maintenant expliquer sans l'agent** : la différence entre une pagination serveur (`skip`/`limit` + `countDocuments` dans Mongo) et un découpage côté client, pourquoi chaque clic sur Précédent / Suivant doit refaire une requête HTTP, comment les Signals pilotent l'affichage du template (`@if`, `@for`, `@empty`), et pourquoi on désactive les boutons pendant un chargement. Pour les options avancées : ce que fait un pipeline d'agrégation (`$match`, `$sort`, `$project`) et pourquoi il faut convertir l'id en `ObjectId` à la main, à quoi servent les `customLabels` du plugin pour ne pas casser le contrat, pourquoi le Paginator compte à partir de 0 alors que l'API commence à 1, et comment `MatPaginatorIntl` permet de traduire le composant.
