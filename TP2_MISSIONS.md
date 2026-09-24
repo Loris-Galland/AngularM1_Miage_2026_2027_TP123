@@ -124,6 +124,10 @@ J'ai créé shared/validators/audio-file.ts avec les mêmes règles que le backe
 
 Pourquoi c'est pas suffisant tout seul : la validation front c'est pour le confort, on sait tout de suite que ça va pas au lieu d'attendre d'avoir envoyé 30 Mo pour rien. Mais n'importe qui peut la contourner, en envoyant la requête avec curl ou Postman, en modifiant le JS dans le navigateur, ou juste en renommant un fichier (le type MIME est deviné par le navigateur à partir de l'extension). Le backend c'est le seul endroit qu'on contrôle vraiment, donc c'est lui qui doit avoir le dernier mot. D'ailleurs j'ai testé avec curl : un fichier texte envoyé direct à l'API donne bien 400 "Format audio non accepté", et un envoi sans fichier donne 400 "Fichier audio requis".
 
+Dans le navigateur, quand je choisis un fichier texte, le message rouge s'affiche tout de suite et le bouton Envoyer reste grisé. Dans Network on voit qu'aucune requête POST est partie : le 400 du serveur arrive jamais jusqu'au navigateur parce que la validation front bloque avant. C'est pour ça que le 400 du backend je l'ai prouvé avec curl.
+
+![Fichier invalide refusé avant l'envoi](screenshots/tp2/fichier_invalide.PNG)
+
 Pendant l'envoi
 
 J'ai transformé file en signal et ajouté les signaux uploading, fileError (erreur de validation), uploadError (erreur du serveur) et uploadSuccess. Pendant l'envoi le bouton affiche "Envoi en cours…" et est désactivé, l'input fichier aussi, et upload() sort direct si un envoi est déjà en cours, donc pas de double envoi possible même en cliquant vite. Si le serveur répond une erreur, son message s'affiche. J'ai bien séparé l'erreur de validation et l'erreur serveur, sinon après une erreur serveur le bouton restait bloqué et on pouvait pas réessayer. Si ça marche, un message de succès s'affiche avec le titre, le titre et le fichier sont vidés, y compris l'input fichier lui-même (avant il affichait encore l'ancien nom) grâce à un viewChild, et on recharge la page 1.
@@ -147,6 +151,10 @@ Sur cette capture on voit la lecture en cours avec la card entourée en vert, et
 ![Lecture audio authentifiée](screenshots/tp2/lecture_audio.PNG)
 
 J'ai aussi vérifié qu'une piste peut être lue que par son propriétaire : j'ai créé un deuxième compte (proprio-test@example.com) et j'ai essayé de lire une piste du compte demo avec son token, le serveur répond 404 "Piste inconnue", et ce compte voit 0 piste dans sa liste. C'est parce que la route cherche la piste avec son id ET ownerId égal à l'utilisateur du token.
+
+Je l'ai aussi montré dans le navigateur : connecté avec le compte de test, j'ai lancé dans la console un fetch vers l'audio d'une piste du compte demo, avec le token du compte de test. Le serveur répond 404.
+
+![Piste d'un autre utilisateur : 404](screenshots/tp2/proprietaire_404.PNG)
 
 Blob, buffering et streaming, la différence
 

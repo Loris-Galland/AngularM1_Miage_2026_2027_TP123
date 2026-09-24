@@ -104,6 +104,10 @@ Pour les options avancées : `npm test` du backend passe (3 tests sur 3), et les
 
 ![Lecture audio authentifiée : GET 200 en audio/mpeg (token masqué)](screenshots/tp2/lecture_audio.PNG)
 
+![Fichier invalide refusé avant l'envoi](screenshots/tp2/fichier_invalide.PNG)
+
+![Piste d'un autre utilisateur : 404](screenshots/tp2/proprietaire_404.PNG)
+
 **Ce que je sais maintenant expliquer sans l'agent** : le trajet d'un fichier de l'input jusqu'au disque du serveur et à MongoDB, pourquoi un `src` direct n'envoie pas le JWT et comment `Blob` + `ObjectURL` contournent le problème, pourquoi la validation frontend ne remplace jamais celle du backend, la différence entre télécharger un Blob complet, le buffering du navigateur et le streaming côté serveur (requêtes `Range`, réponse 206), et pourquoi il faut révoquer une `ObjectURL` dans une SPA.
 
 ## Améliorations facultatives
