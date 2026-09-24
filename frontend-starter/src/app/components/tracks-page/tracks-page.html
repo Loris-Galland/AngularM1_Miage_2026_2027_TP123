@@ -36,23 +36,50 @@
         <h2>Mes pistes</h2>
         <button type="button" (click)="load()">Actualiser</button>
       </div>
+      @if (current(); as playing) {
+        <div class="player">
+          <p aria-live="polite">En cours : <b>{{ playing.title }}</b></p>
+          <audio [src]="audioUrl()" controls autoplay (error)="onAudioError()"></audio>
+        </div>
+      }
+      @if (audioError()) {
+        <p class="error" role="alert">{{ audioError() }}</p>
+      }
       @if (error()) {
         <p class="error" role="alert">{{ error() }}</p>
       }
       @if (loading()) {
         <p aria-live="polite">Chargement…</p>
       } @else {
-        @for (track of tracks(); track track.id) {
-          <div class="track">
-            <div>
-              <b>{{ track.title }}</b>
-              <small>{{ track.originalName }} · {{ track.size }} Ko</small>
-            </div>
-            <button type="button" (click)="play(track)" [attr.aria-label]="'Lire ' + track.title">▶</button>
-          </div>
-        } @empty {
-          <p>Aucune piste.</p>
-        }
+        <ul class="cards">
+          @for (track of tracks(); track track.id) {
+            <li>
+              <article
+                class="track-card"
+                [class.playing]="current()?.id === track.id"
+                [attr.aria-current]="current()?.id === track.id ? 'true' : null"
+              >
+                <h3>{{ track.title }}</h3>
+                <p class="original" [title]="track.originalName">{{ track.originalName }}</p>
+                <dl>
+                  <div><dt>Format</dt><dd>{{ track.mimeType | audioFormat }}</dd></div>
+                  <div><dt>Taille</dt><dd>{{ track.size | fileSize }}</dd></div>
+                  <div><dt>Ajoutée le</dt><dd>{{ track.createdAt | date: 'dd/MM/yyyy HH:mm' }}</dd></div>
+                </dl>
+                <button
+                  type="button"
+                  (click)="play(track)"
+                  [disabled]="audioLoadingId() === track.id"
+                  [attr.aria-label]="'Écouter ' + track.title"
+                >
+                  {{ audioLoadingId() === track.id ? 'Chargement…' : '▶ Écouter' }}
+                </button>
+              </article>
+            </li>
+          } @empty {
+            <li class="empty">Aucune piste pour l'instant, importez votre premier morceau.</li>
+          }
+        </ul>
       }
       <mat-paginator
         [length]="total()"
@@ -64,9 +91,6 @@
         aria-label="Pagination des pistes"
       />
       <p class="page-info">Page {{ page() }} / {{ pages() }}</p>
-      @if (audioUrl()) {
-        <audio [src]="audioUrl()" controls autoplay></audio>
-      }
     </article>
   </div>
 </section>

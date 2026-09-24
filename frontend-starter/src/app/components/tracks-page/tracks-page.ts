@@ -1,12 +1,15 @@
-import { Component, ElementRef, inject, signal, viewChild } from '@angular/core';
+import { Component, DestroyRef, ElementRef, inject, signal, viewChild } from '@angular/core';
+import { DatePipe } from '@angular/common';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { Track } from '../../shared/models/track.model';
 import { TrackService } from '../../shared/services/track.service';
 import { AUDIO_TYPES, validateAudioFile } from '../../shared/validators/audio-file';
+import { FileSizePipe } from '../../shared/pipes/file-size.pipe';
+import { AudioFormatPipe } from '../../shared/pipes/audio-format.pipe';
 
 @Component({
-  imports: [ReactiveFormsModule, MatPaginatorModule],
+  imports: [ReactiveFormsModule, MatPaginatorModule, DatePipe, FileSizePipe, AudioFormatPipe],
   templateUrl: './tracks-page.html',
   styleUrl: './tracks-page.css',
 })
@@ -21,6 +24,9 @@ export class TracksPageComponent {
   readonly loading = signal(false);
   readonly error = signal('');
   readonly audioUrl = signal('');
+  readonly current = signal<Track | null>(null);
+  readonly audioLoadingId = signal<string | null>(null);
+  readonly audioError = signal('');
   readonly title = new FormControl('', { nonNullable: true });
   readonly file = signal<File | null>(null);
   readonly uploading = signal(false);
@@ -32,6 +38,12 @@ export class TracksPageComponent {
 
   constructor() {
     this.load();
+
+    // The last ObjectURL keeps the whole Blob in memory until it is revoked.
+    inject(DestroyRef).onDestroy(() => {
+      const url = this.audioUrl();
+      if (url) URL.revokeObjectURL(url);
+    });
   }
 
   choose(event: Event): void {
@@ -105,14 +117,34 @@ export class TracksPageComponent {
   }
 
   play(track: Track): void {
+    this.audioLoadingId.set(track.id);
+    this.audioError.set('');
+
     this.service.audio(track.id).subscribe({
       next: (blob) => {
         console.debug('[TracksPage] Audio chargé', track.id);
         const previousUrl = this.audioUrl();
         if (previousUrl) URL.revokeObjectURL(previousUrl);
         this.audioUrl.set(URL.createObjectURL(blob));
+        this.current.set(track);
+        this.audioLoadingId.set(null);
       },
-      error: (error) => console.error('[TracksPage] Lecture impossible', error),
+      error: (error: { status?: number }) => {
+        console.error('[TracksPage] Lecture impossible', error);
+        this.audioLoadingId.set(null);
+        this.audioError.set(
+          error.status === 404
+            ? `« ${track.title} » est introuvable ou ne vous appartient pas.`
+            : `Impossible de récupérer « ${track.title} », réessayez.`,
+        );
+      },
     });
+  }
+
+  /** The Blob was downloaded but the browser cannot decode it. */
+  onAudioError(): void {
+    const track = this.current();
+    console.error('[TracksPage] Erreur du lecteur audio', track?.id);
+    this.audioError.set(`Le navigateur n'arrive pas à lire « ${track?.title} » (fichier abîmé ou format non supporté).`);
   }
 }
