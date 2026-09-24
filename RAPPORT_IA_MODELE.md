@@ -62,6 +62,12 @@ Les explications détaillées de chaque mission sont dans `TP2_MISSIONS.md`.
 
 **Fichiers effectivement modifiés** : `tracks-page.ts` (signal `error`, constante `limit`, garde dans `go()`), `tracks-page.html` (affichage de l'erreur, `@if/@else` pour le chargement, boutons Précédent / Suivant). Fichiers ajoutés : `coffee-time.mp3` et `summer-breeze.mp3` dans `frontend-starter/fichiers-audio-de-test/`. `track.service.ts` n'a pas eu besoin d'être modifié.
 
-**Preuve de fonctionnement** : build Angular sans erreur ; logs backend `[tracks] Lecture page=1, limit=5`, puis `page=2`, puis `page=3` lors des tests. La capture Network de la pagination dans le navigateur reste à faire par moi une fois qu'il y a plus de 5 pistes sur le compte.
+**Preuve de fonctionnement** : build Angular sans erreur ; logs backend `[tracks] Lecture page=1, limit=5`, puis `page=2`, puis `page=3` lors des tests. Captures faites par moi dans le navigateur avec 6 pistes sur le compte :
+
+![Requêtes page=1, page=2, page=1 dans Network](screenshots/tp2/pagination1.PNG)
+
+![Réponse de la page 2 : page 2, pages 2, total 6](screenshots/tp2/pagination_page2.PNG)
+
+![Interface sur la dernière page, Suivant désactivé](screenshots/tp2/pagination_interface.PNG)
 
 **Ce que je sais maintenant expliquer sans l'agent** : la différence entre une pagination serveur (`skip`/`limit` + `countDocuments` dans Mongo) et un découpage côté client, pourquoi chaque clic sur Précédent / Suivant doit refaire une requête HTTP, comment les Signals pilotent l'affichage du template (`@if`, `@for`, `@empty`), et pourquoi on désactive les boutons pendant un chargement.

@@ -33,3 +33,19 @@ Le composant appelait list(this.page()) en laissant limit par défaut à 5 dans 
 Comment j'ai vérifié
 
 Le build Angular passe sans erreur. J'ai lancé le backend et appelé GET /api/tracks avec page=1, 2 et 3. Dans les logs du backend on voit bien "Lecture page=1", "page=2", "page=3" à chaque fois, donc c'est bien le serveur qui découpe et pas Angular. Pour la capture Network il faut plus de 5 pistes sur le compte pour avoir au moins deux pages, sinon le bouton Suivant reste grisé.
+
+Les preuves
+
+J'ai uploadé 6 pistes pour avoir 2 pages, puis j'ai fait les captures avec le Network ouvert, filtré sur tracks et cache désactivé.
+
+Sur la première on voit les trois requêtes à la suite quand je fais recharger, Suivant puis Précédent : page=1, page=2, page=1, toutes en 200. Ça prouve qu'Angular refait une requête à chaque clic au lieu de découper la liste lui-même.
+
+![Requêtes de pagination dans Network](screenshots/tp2/pagination1.PNG)
+
+Sur la deuxième je suis sur la page 2, et dans le Preview de la requête on voit ce que le serveur renvoie : une seule piste dans items, page 2, pages 2 et total 6.
+
+![Réponse du serveur pour la page 2](screenshots/tp2/pagination_page2.PNG)
+
+Et la dernière montre l'interface sur la page 2 : "Page 2 / 2", Précédent actif et Suivant grisé parce que c'est la dernière page.
+
+![Boutons désactivés sur la dernière page](screenshots/tp2/pagination_interface.PNG)
