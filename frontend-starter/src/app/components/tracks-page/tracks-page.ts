@@ -10,11 +10,13 @@ import { TrackService } from '../../shared/services/track.service';
 })
 export class TracksPageComponent {
   private readonly service = inject(TrackService);
+  private readonly limit = 5;
 
   readonly tracks = signal<Track[]>([]);
   readonly page = signal(1);
   readonly pages = signal(1);
   readonly loading = signal(false);
+  readonly error = signal('');
   readonly audioUrl = signal('');
   readonly title = new FormControl('', { nonNullable: true });
   file?: File;
@@ -30,21 +32,24 @@ export class TracksPageComponent {
 
   load(): void {
     this.loading.set(true);
-    this.service.list(this.page()).subscribe({
+    this.error.set('');
+    this.service.list(this.page(), this.limit).subscribe({
       next: (response) => {
         console.debug('[TracksPage] Pistes chargées', response.items.length);
         this.tracks.set(response.items);
         this.pages.set(response.pages);
         this.loading.set(false);
       },
-      error: (error) => {
+      error: (error: { error?: { message?: string } }) => {
         console.error('[TracksPage] Chargement impossible', error);
+        this.error.set(error.error?.message ?? 'Impossible de charger vos pistes');
         this.loading.set(false);
       },
     });
   }
 
   go(page: number): void {
+    if (page < 1 || page > this.pages() || this.loading()) return;
     this.page.set(page);
     this.load();
   }
