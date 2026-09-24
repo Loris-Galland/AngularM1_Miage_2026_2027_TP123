@@ -1,6 +1,11 @@
 :host { display: block; }
 .page-info { margin: 0; text-align: right; font-size: 0.85rem; color: #61756f; }
 
+/* Barre de progression de l'upload. */
+.upload-progress { margin-top: 0.8rem; }
+.upload-progress progress { width: 100%; height: 0.6rem; accent-color: #1d755e; }
+.upload-progress p { margin: 0.3rem 0 0; font-size: 0.85rem; }
+
 /* Lecteur : morceau en cours au-dessus de la liste. */
 .player { margin: 1rem 0; padding: 0.8rem 1rem; background: #eef5f2; border-radius: 12px; }
 .player p { margin: 0 0 0.5rem; }

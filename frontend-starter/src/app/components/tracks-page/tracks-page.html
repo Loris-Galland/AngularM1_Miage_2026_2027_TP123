@@ -18,7 +18,16 @@
         {{ uploading() ? 'Envoi en cours…' : 'Envoyer' }}
       </button>
       @if (uploading()) {
-        <p class="status" aria-live="polite">Envoi de « {{ file()?.name }} »…</p>
+        <div class="upload-progress">
+          <progress max="100" [value]="progress()" aria-label="Progression de l'envoi"></progress>
+          <p class="status" aria-live="polite">
+            @if (progress() < 100) {
+              Envoi de « {{ file()?.name }} » : {{ progress() }} %
+            } @else {
+              Fichier reçu, enregistrement en cours…
+            }
+          </p>
+        </div>
       }
       @if (fileError()) {
         <p class="error" role="alert">{{ fileError() }}</p>

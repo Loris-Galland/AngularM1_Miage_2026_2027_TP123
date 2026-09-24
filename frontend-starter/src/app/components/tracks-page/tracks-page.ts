@@ -1,5 +1,6 @@
 import { Component, DestroyRef, ElementRef, inject, signal, viewChild } from '@angular/core';
 import { DatePipe } from '@angular/common';
+import { HttpEventType } from '@angular/common/http';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { Track } from '../../shared/models/track.model';
@@ -30,6 +31,7 @@ export class TracksPageComponent {
   readonly title = new FormControl('', { nonNullable: true });
   readonly file = signal<File | null>(null);
   readonly uploading = signal(false);
+  readonly progress = signal(0);
   readonly fileError = signal('');
   readonly uploadError = signal('');
   readonly uploadSuccess = signal('');
@@ -94,11 +96,20 @@ export class TracksPageComponent {
 
     const title = this.title.value.trim() || file.name;
     this.uploading.set(true);
+    this.progress.set(0);
     this.uploadError.set('');
     this.uploadSuccess.set('');
 
     this.service.upload(file, title).subscribe({
-      next: (track) => {
+      next: (event) => {
+        if (event.type === HttpEventType.UploadProgress) {
+          // event.total can be missing if the browser does not know the body size.
+          if (event.total) this.progress.set(Math.round((100 * event.loaded) / event.total));
+          return;
+        }
+        if (event.type !== HttpEventType.Response || !event.body) return;
+
+        const track = event.body;
         console.debug('[TracksPage] Piste envoyée', track.id);
         this.uploading.set(false);
         this.uploadSuccess.set(`« ${track.title} » a bien été ajoutée à votre bibliothèque.`);
