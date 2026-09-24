@@ -42,6 +42,25 @@ test("schémas Mongoose et relation", () => {
   assert.equal(Track.schema.path("ownerId").options.ref, "User");
 });
 
+test("toPublic expose hasCover mais jamais les noms de fichiers", () => {
+  const t = new Track({
+    ownerId: new mongoose.Types.ObjectId(),
+    title: "Blues",
+    originalName: "b.mp3",
+    storedName: "x.mp3",
+    mimeType: "audio/mpeg",
+    size: 42,
+  });
+  assert.equal(t.toPublic().hasCover, false);
+
+  t.coverName = "y.png";
+  t.coverType = "image/png";
+  const pub = t.toPublic();
+  assert.equal(pub.hasCover, true);
+  assert.equal("coverName" in pub, false);
+  assert.equal("storedName" in pub, false);
+});
+
 test("plugin aggregate-paginate branché sur Track", () => {
   assert.equal(typeof Track.aggregatePaginate, "function");
 });

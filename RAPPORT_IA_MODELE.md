@@ -133,3 +133,21 @@ Pour les options avancées : `npm test` du backend passe (3 tests sur 3), et les
 ![Filtre par titre avec q=song](screenshots/tp2/recherche_son.PNG)
 
 **Ce que je sais maintenant expliquer sans l'agent** : comment `reportProgress` et `HttpEventType` permettent de suivre un upload, comment une `MatDialog` renvoie un résultat avec `afterClosed()`, pourquoi un filtre doit être fait côté serveur quand la liste est paginée, pourquoi il faut échapper une saisie avant d'en faire une regex MongoDB, et à quoi servent `debounceTime`, `distinctUntilChanged` et l'annulation de la requête précédente.
+
+## AVANCÉ — Image de couverture
+
+**Objectif** : ajouter une image de couverture à chaque morceau, en identifiant d'abord les modifications de données et d'API, et en respectant la sécurité, l'accessibilité et les droits sur les images.
+
+**Prompt principal** : j'ai demandé de faire l'image de couverture en me laissant choisir l'approche, puis de passer en mode plan pour me présenter les modifications de données et d'API avant de coder, comme le demande le sujet.
+
+**Plan proposé par l'agent** : deux champs dans `Track` (`coverName` masqué, `coverType`) et un booléen public `hasCover` ; deux nouvelles routes `PUT` et `GET /api/tracks/:id/cover` sans toucher à `POST /api/tracks` ; une deuxième configuration Multer (JPEG, PNG, WebP, 2 Mo, pas de SVG) avec vérification des premiers octets ; côté front, un champ facultatif dans le formulaire, un bouton sur chaque card et l'affichage en Blob + ObjectURL avec révocation.
+
+**Vérifications réalisées par moi** : c'est moi qui ai choisi l'upload d'image plutôt que les tags ID3 et un service web. J'ai validé le plan (données et API) avant qu'il soit codé. Tests `curl` : vraie image 200, lecture en `image/png` avec `nosniff`, faux PNG 400, image trop grosse 400, SVG 400, sans fichier 400, sans token 401, compte demo 404 ; aucun fichier orphelin dans `data/uploads` après un refus, un remplacement ou une suppression. `npm test` : 4 tests sur 4. Build Angular sans erreur. Le rendu dans le navigateur reste à vérifier par moi.
+
+**Erreurs ou propositions rejetées** : l'approche ID3 + service web a été écartée (dépendance externe, droits des images, et mes fichiers n'ont pas de pochette). Pendant le développement, un premier calcul de `hasCover` basé sur `coverName` aurait été faux dans certaines réponses, puisque ce champ n'est pas chargé par défaut ; il est maintenant calculé à partir de `coverType`.
+
+**Fichiers effectivement modifiés** : `backend/src/models/Track.js`, `backend/src/app.js`, `backend/test/api.test.js`, `API_CONTRACT.md`, `track.model.ts`, `track.service.ts`, le nouveau `shared/validators/image-file.ts`, `tracks-page.ts/html/css`.
+
+**Preuve de fonctionnement** : tests `curl` et `npm test` ci-dessus. Captures à ajouter.
+
+**Ce que je sais maintenant expliquer sans l'agent** : pourquoi on identifie les changements de données et d'API avant de coder, pourquoi le type MIME envoyé par le client ne suffit pas et comment on vérifie la signature d'un fichier, pourquoi le SVG est dangereux, pourquoi une image protégée par JWT se charge comme l'audio (Blob + ObjectURL), et comment éviter les fichiers orphelins sur le serveur.

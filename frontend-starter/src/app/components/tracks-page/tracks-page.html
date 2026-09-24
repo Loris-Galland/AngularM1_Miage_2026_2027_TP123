@@ -14,7 +14,15 @@
         <input #fileInput type="file" [accept]="acceptedTypes" (change)="choose($event)" [disabled]="uploading()" />
       </label>
       <small class="hint">MP3, WAV, OGG ou M4A, 25 Mo maximum.</small>
-      <button type="button" (click)="upload()" [disabled]="!file() || !!fileError() || uploading()">
+      <label>
+        Image de couverture (facultatif)
+        <input #coverInput type="file" [accept]="imageTypes" (change)="chooseCover($event)" [disabled]="uploading()" />
+      </label>
+      <small class="hint">JPEG, PNG ou WebP, 2 Mo maximum. Utilisez une image dont vous avez les droits.</small>
+      @if (coverError()) {
+        <p class="error" role="alert">{{ coverError() }}</p>
+      }
+      <button type="button" (click)="upload()" [disabled]="!file() || !!fileError() || !!coverError() || uploading()">
         {{ uploading() ? 'Envoi en cours…' : 'Envoyer' }}
       </button>
       @if (uploading()) {
@@ -75,6 +83,13 @@
                 [class.playing]="current()?.id === track.id"
                 [attr.aria-current]="current()?.id === track.id ? 'true' : null"
               >
+                <div class="cover">
+                  @if (covers()[track.id]; as coverUrl) {
+                    <img [src]="coverUrl" [alt]="'Pochette de ' + track.title" />
+                  } @else {
+                    <span class="cover-placeholder" aria-hidden="true">♪</span>
+                  }
+                </div>
                 <h3>{{ track.title }}</h3>
                 <p class="original" [title]="track.originalName">{{ track.originalName }}</p>
                 <dl>
@@ -101,6 +116,22 @@
                     {{ deletingId() === track.id ? 'Suppression…' : 'Supprimer' }}
                   </button>
                 </div>
+                <!-- The real input is visually hidden but stays focusable: the label acts as the button. -->
+                <label class="cover-button" [class.busy]="coverUploadingId() === track.id">
+                  <input
+                    type="file"
+                    class="visually-hidden"
+                    [accept]="imageTypes"
+                    (change)="changeCover(track, $event)"
+                    [disabled]="coverUploadingId() === track.id"
+                    [attr.aria-label]="(track.hasCover ? 'Changer l\'image de ' : 'Ajouter une image à ') + track.title"
+                  />
+                  @if (coverUploadingId() === track.id) {
+                    Envoi de l'image…
+                  } @else {
+                    {{ track.hasCover ? "Changer l'image" : 'Ajouter une image' }}
+                  }
+                </label>
               </article>
             </li>
           } @empty {
