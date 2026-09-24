@@ -49,3 +49,33 @@ Sur la deuxième je suis sur la page 2, et dans le Preview de la requête on voi
 Et la dernière montre l'interface sur la page 2 : "Page 2 / 2", Précédent actif et Suivant grisé parce que c'est la dernière page.
 
 ![Boutons désactivés sur la dernière page](screenshots/tp2/pagination_interface.PNG)
+
+Ces captures c'est la version de base avec mes propres boutons, avant que je fasse les deux options avancées juste en dessous.
+
+## Mission 2 — AVANCÉ — Pagination Mongoose
+
+Là c'est la seule partie du TP2 où le sujet autorise à toucher au backend. Le but c'est de remplacer la pagination faite à la main par le plugin mongoose-aggregate-paginate-v2.
+
+Avant, la route GET /api/tracks faisait deux requêtes en parallèle avec Promise.all : un find() avec skip et limit pour récupérer les pistes de la page, et un countDocuments() pour avoir le total. Ensuite elle calculait pages elle-même avec Math.ceil(total / limit).
+
+Maintenant j'ai installé le plugin, je l'ai branché sur le schéma Track avec schema.plugin(aggregatePaginate), et dans la route je construis un pipeline d'agrégation en trois étapes : un $match pour ne garder que les pistes de l'utilisateur connecté, un $sort pour avoir les plus récentes en premier, et un $project pour virer storedName (le nom du fichier sur le disque, qu'on doit jamais envoyer au front). Ensuite Track.aggregatePaginate() s'occupe tout seul du skip, du limit et du comptage.
+
+Un piège que j'ai vu en passant : dans un aggregate, Mongoose convertit pas automatiquement l'id en ObjectId comme il le fait avec find(). Du coup si on met juste req.auth.sub (qui est une string) dans le $match, ça trouve rien. Faut faire new mongoose.Types.ObjectId(req.auth.sub).
+
+Le plugin renvoie de base des champs qui s'appellent docs, totalDocs et totalPages. Avec l'option customLabels je les ai renommés en items, total et pages, comme ça le format de base du contrat reste le même et le front casse pas. Par contre il renvoie en plus des infos bonus : hasPrevPage, hasNextPage, prevPage, nextPage et pagingCounter (le numéro de la première piste de la page). Du coup j'ai mis à jour API_CONTRACT.md pour documenter tout ça, et le modèle Page côté Angular.
+
+Pour vérifier j'ai ajouté un petit test dans api.test.js qui regarde que Track.aggregatePaginate existe bien, les 3 tests passent. Et j'ai appelé la route avec le compte demo qui a 6 pistes : page 1 donne 5 pistes avec hasNextPage à true, page 2 donne 1 piste avec nextPage à null, avec limit=10 on a les 6 d'un coup sur une seule page, sans token c'est toujours 401, et aucun storedName ni _id dans les réponses.
+
+## Mission 2 — AVANCÉ — Angular Material
+
+Le deuxième bonus c'était d'utiliser le composant Paginator d'Angular Material au lieu de mes boutons Précédent / Suivant faits main. J'ai choisi de remplacer mes boutons plutôt que de garder les deux, sinon ça fait doublon à l'écran.
+
+J'ai installé @angular/material et @angular/cdk en version 22 pour que ça colle avec notre Angular 22. J'ai pas utilisé ng add parce que ça modifie plein de fichiers tout seul, j'ai préféré ajouter moi même le thème prédéfini azure-blue dans angular.json. Dans styles.css j'ai remis le vert du site comme couleur principale du paginator, et j'ai annulé le style global des boutons (fond vert, texte blanc) juste pour les boutons du paginator, sinon ses flèches avaient un gros fond vert. J'ai mis ça dans un :where() pour que ma règle soit pas plus forte que les styles de Material eux-mêmes.
+
+Dans le composant, limit est devenu un signal parce que maintenant l'utilisateur peut choisir 5, 10 ou 20 pistes par page (20 c'est le max accepté par le backend). J'ai ajouté un signal total, parce que le paginator a besoin du nombre total de pistes pour calculer lui-même le nombre de pages. La fonction go() a été remplacée par onPage() qui reçoit l'événement du paginator. Petit truc à savoir : le paginator compte les pages à partir de 0 (pageIndex) alors que notre API commence à 1, donc je fais pageIndex + 1.
+
+Le paginator est désactivé pendant un chargement, et ses flèches sont grisées toutes seules aux bornes, donc on garde bien ce que demandait la mission de base. J'ai aussi gardé un petit "Page X / Y" en dessous pour que le signal pages soit toujours visible.
+
+Par défaut les textes du paginator sont en anglais ("Items per page", "1 – 5 of 6"). J'ai créé une classe FrenchPaginatorIntl dans shared/i18n qui hérite de MatPaginatorIntl pour tout mettre en français ("Pistes par page", "1 – 5 sur 6", "Page suivante"...), et je l'ai fournie dans main.ts, comme ça ça s'applique à tous les paginators de l'appli.
+
+Chaque clic sur une flèche ou changement du nombre par page refait toujours une vraie requête au serveur avec page et limit, c'est toujours le backend qui découpe.
