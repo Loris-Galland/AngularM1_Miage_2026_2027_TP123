@@ -19,6 +19,10 @@ const schema = new mongoose.Schema(
     storedName: { type: String, required: true, select: false },
     mimeType: { type: String, required: true },
     size: { type: Number, required: true, min: 0 },
+    // Image de couverture facultative : même principe que storedName, le nom
+    // sur le disque n'est jamais exposé. coverType sert aussi à savoir s'il y en a une.
+    coverName: { type: String, select: false },
+    coverType: { type: String },
   },
   { timestamps: true },
 );
@@ -42,6 +46,7 @@ schema.methods.toPublic = function () {
     originalName: this.originalName,
     mimeType: this.mimeType,
     size: this.size,
+    hasCover: Boolean(this.coverType),
     createdAt: this.createdAt,
   };
 };

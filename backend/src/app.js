@@ -120,6 +120,56 @@ const upload = multer({
   },
 });
 
+// Images de couverture : 2 Mo maximum, JPEG, PNG ou WebP uniquement.
+// Le SVG est volontairement exclu : il peut contenir du JavaScript.
+const MAX_COVER_SIZE = 2 * 1024 * 1024;
+const allowedCovers = new Set(["image/jpeg", "image/png", "image/webp"]);
+
+const coverUpload = multer({
+  storage,
+  limits: { fileSize: MAX_COVER_SIZE },
+  fileFilter: (_request, file, callback) => {
+    if (allowedCovers.has(file.mimetype)) {
+      console.log(`[multer] Image acceptée : ${file.mimetype}`);
+      return callback(null, true);
+    }
+
+    const error = new Error("Format d'image non accepté");
+    console.error(`[multer] Image refusée : ${file.mimetype}`, error);
+    return callback(error);
+  },
+});
+
+/**
+ * Le type MIME est déclaré par le client et peut être faux : on vérifie donc
+ * les premiers octets du fichier (la « signature » de chaque format).
+ */
+async function isRealImage(filePath, mimeType) {
+  const handle = await fsPromises.open(filePath, "r");
+  try {
+    const { buffer } = await handle.read(Buffer.alloc(12), 0, 12, 0);
+    if (mimeType === "image/jpeg") return buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+    if (mimeType === "image/png") return buffer.subarray(0, 4).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+    if (mimeType === "image/webp") {
+      return buffer.toString("ascii", 0, 4) === "RIFF" && buffer.toString("ascii", 8, 12) === "WEBP";
+    }
+    return false;
+  } finally {
+    await handle.close();
+  }
+}
+
+/** Supprime un fichier du dossier uploads en journalisant un éventuel échec. */
+async function removeUpload(filename) {
+  const filePath = path.join(UPLOADS, filename);
+  try {
+    await fsPromises.unlink(filePath);
+    console.log(`[uploads] Fichier supprimé : ${filePath}`);
+  } catch (error) {
+    console.error(`[uploads] Impossible de supprimer ${filePath}`, error);
+  }
+}
+
 /**
  * Construit l'application Express sans ouvrir de port.
  * Cette séparation permet au serveur réel et aux tests de créer la même
@@ -287,12 +337,14 @@ export function createApp() {
       }
 
       // Pipeline d'agrégation : les pistes de l'utilisateur, les plus récentes d'abord,
-      // sans storedName. Contrairement à find(), aggregate() ne convertit pas l'id
-      // automatiquement, d'où le new mongoose.Types.ObjectId().
+      // sans les noms de fichiers sur le disque. Contrairement à find(), aggregate()
+      // ne convertit pas l'id automatiquement, d'où le new mongoose.Types.ObjectId().
+      // hasCover est calculé comme dans toPublic() avant de masquer les champs de couverture.
       const aggregate = Track.aggregate([
         { $match: match },
         { $sort: { createdAt: -1 } },
-        { $project: { storedName: 0 } },
+        { $addFields: { hasCover: { $cond: [{ $ifNull: ["$coverType", false] }, true, false] } } },
+        { $project: { storedName: 0, coverName: 0, coverType: 0 } },
       ]);
 
       // Le plugin fait le $skip/$limit et le comptage total à notre place.
@@ -405,18 +457,96 @@ export function createApp() {
     }
   });
 
-  /** Supprime la métadonnée et le fichier physique correspondant. */
+  /**
+   * Ajoute ou remplace l'image de couverture d'une piste.
+   * Flux : JWT -> Multer (type et taille) -> vérification des octets -> propriétaire
+   * -> enregistrement du nouveau nom -> suppression de l'ancienne image.
+   * Si une étape échoue, l'image qui vient d'être écrite est supprimée.
+   */
+  app.put("/api/tracks/:id/cover", auth, coverUpload.single("cover"), async (req, res, next) => {
+    try {
+      if (!req.file) {
+        console.warn(`[covers] Envoi sans image par ${req.auth.sub}`);
+        return res.status(400).json({ message: "Image de couverture requise" });
+      }
+
+      if (!(await isRealImage(path.join(UPLOADS, req.file.filename), req.file.mimetype))) {
+        console.warn(`[covers] Contenu qui ne correspond pas à ${req.file.mimetype}`);
+        await removeUpload(req.file.filename);
+        return res.status(400).json({ message: "Le fichier n'est pas une image valide" });
+      }
+
+      const track = await Track.findOne({
+        _id: req.params.id,
+        ownerId: req.auth.sub,
+      }).select("+coverName");
+
+      if (!track) {
+        console.warn(`[covers] Piste introuvable ou interdite : ${req.params.id}`);
+        await removeUpload(req.file.filename);
+        return res.status(404).json({ message: "Piste inconnue" });
+      }
+
+      const previousCover = track.coverName;
+      track.coverName = req.file.filename;
+      track.coverType = req.file.mimetype;
+      await track.save();
+      console.log(`[covers] Couverture enregistrée pour ${track.id}`);
+
+      if (previousCover) await removeUpload(previousCover);
+      res.json(track.toPublic());
+    } catch (error) {
+      console.error("[covers] Erreur d'enregistrement de la couverture", error);
+      if (req.file) await removeUpload(req.file.filename);
+      next(error);
+    }
+  });
+
+  /** Envoie l'image de couverture, uniquement à son propriétaire. */
+  app.get("/api/tracks/:id/cover", auth, async (req, res, next) => {
+    try {
+      const track = await Track.findOne({
+        _id: req.params.id,
+        ownerId: req.auth.sub,
+      }).select("+coverName");
+
+      if (!track?.coverName) {
+        console.warn(`[covers] Couverture introuvable ou interdite : ${req.params.id}`);
+        return res.status(404).json({ message: "Couverture inconnue" });
+      }
+
+      res.type(track.coverType);
+      // Empêche le navigateur de deviner un autre type que celui annoncé.
+      res.set("X-Content-Type-Options", "nosniff");
+      res.sendFile(path.join(UPLOADS, track.coverName), (error) => {
+        if (error) {
+          console.error(`[covers] Erreur d'envoi de la couverture ${track.id}`, error);
+          if (!res.headersSent) next(error);
+          return;
+        }
+        console.log(`[covers] Couverture envoyée : ${track.id}`);
+      });
+    } catch (error) {
+      console.error("[covers] Erreur de lecture de la couverture", error);
+      next(error);
+    }
+  });
+
+  /** Supprime la métadonnée et les fichiers physiques correspondants (audio et couverture). */
   app.delete("/api/tracks/:id", auth, async (req, res, next) => {
     try {
       const track = await Track.findOneAndDelete({
         _id: req.params.id,
         ownerId: req.auth.sub,
-      }).select("+storedName");
+      }).select("+storedName +coverName");
 
       if (!track) {
         console.warn(`[tracks] Suppression impossible : ${req.params.id}`);
         return res.status(404).json({ message: "Piste inconnue" });
       }
+
+      // Une erreur de suppression de la couverture est journalisée par removeUpload().
+      if (track.coverName) await removeUpload(track.coverName);
 
       const audioPath = path.join(UPLOADS, track.storedName);
       try {
@@ -444,7 +574,8 @@ export function createApp() {
 
     if (
       error instanceof multer.MulterError ||
-      error?.message === "Format audio non accepté"
+      error?.message === "Format audio non accepté" ||
+      error?.message === "Format d'image non accepté"
     ) {
       return res.status(400).json({ message: error.message });
     }
