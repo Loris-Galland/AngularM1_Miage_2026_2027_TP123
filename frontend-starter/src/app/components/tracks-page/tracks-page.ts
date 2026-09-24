@@ -1,8 +1,9 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, ElementRef, inject, signal, viewChild } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { Track } from '../../shared/models/track.model';
 import { TrackService } from '../../shared/services/track.service';
+import { AUDIO_TYPES, validateAudioFile } from '../../shared/validators/audio-file';
 
 @Component({
   imports: [ReactiveFormsModule, MatPaginatorModule],
@@ -21,15 +22,25 @@ export class TracksPageComponent {
   readonly error = signal('');
   readonly audioUrl = signal('');
   readonly title = new FormControl('', { nonNullable: true });
-  file?: File;
+  readonly file = signal<File | null>(null);
+  readonly uploading = signal(false);
+  readonly fileError = signal('');
+  readonly uploadError = signal('');
+  readonly uploadSuccess = signal('');
+  readonly acceptedTypes = AUDIO_TYPES.join(',');
+  private readonly fileInput = viewChild.required<ElementRef<HTMLInputElement>>('fileInput');
 
   constructor() {
     this.load();
   }
 
   choose(event: Event): void {
-    this.file = (event.target as HTMLInputElement).files?.[0];
-    console.debug('[TracksPage] Fichier sélectionné', this.file?.name);
+    const file = (event.target as HTMLInputElement).files?.[0] ?? null;
+    console.debug('[TracksPage] Fichier sélectionné', file?.name);
+    this.uploadSuccess.set('');
+    this.uploadError.set('');
+    this.fileError.set(file ? (validateAudioFile(file) ?? '') : '');
+    this.file.set(file);
   }
 
   load(): void {
@@ -59,17 +70,37 @@ export class TracksPageComponent {
   }
 
   upload(): void {
-    if (!this.file) return;
+    const file = this.file();
+    if (!file || this.uploading()) return;
 
-    this.service.upload(this.file, this.title.value || this.file.name).subscribe({
+    // Same checks as the backend, before any HTTP call.
+    const invalid = validateAudioFile(file);
+    if (invalid) {
+      this.fileError.set(invalid);
+      return;
+    }
+
+    const title = this.title.value.trim() || file.name;
+    this.uploading.set(true);
+    this.uploadError.set('');
+    this.uploadSuccess.set('');
+
+    this.service.upload(file, title).subscribe({
       next: (track) => {
         console.debug('[TracksPage] Piste envoyée', track.id);
+        this.uploading.set(false);
+        this.uploadSuccess.set(`« ${track.title} » a bien été ajoutée à votre bibliothèque.`);
         this.title.setValue('');
-        this.file = undefined;
+        this.file.set(null);
+        this.fileInput().nativeElement.value = '';
         this.page.set(1);
         this.load();
       },
-      error: (error) => console.error('[TracksPage] Envoi impossible', error),
+      error: (error: { error?: { message?: string } }) => {
+        console.error('[TracksPage] Envoi impossible', error);
+        this.uploading.set(false);
+        this.uploadError.set(error.error?.message ?? "L'envoi a échoué, réessayez.");
+      },
     });
   }
 

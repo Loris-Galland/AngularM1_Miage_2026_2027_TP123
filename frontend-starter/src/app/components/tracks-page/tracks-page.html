@@ -8,9 +8,27 @@
   <div class="grid">
     <article class="card">
       <h2>Importer</h2>
-      <label>Titre<input [formControl]="title" /></label>
-      <label>Fichier audio<input type="file" accept="audio/*" (change)="choose($event)" /></label>
-      <button type="button" (click)="upload()" [disabled]="!file">Envoyer</button>
+      <label>Titre<input [formControl]="title" placeholder="Nom du fichier par défaut" /></label>
+      <label>
+        Fichier audio
+        <input #fileInput type="file" [accept]="acceptedTypes" (change)="choose($event)" [disabled]="uploading()" />
+      </label>
+      <small class="hint">MP3, WAV, OGG ou M4A, 25 Mo maximum.</small>
+      <button type="button" (click)="upload()" [disabled]="!file() || !!fileError() || uploading()">
+        {{ uploading() ? 'Envoi en cours…' : 'Envoyer' }}
+      </button>
+      @if (uploading()) {
+        <p class="status" aria-live="polite">Envoi de « {{ file()?.name }} »…</p>
+      }
+      @if (fileError()) {
+        <p class="error" role="alert">{{ fileError() }}</p>
+      }
+      @if (uploadError()) {
+        <p class="error" role="alert">{{ uploadError() }}</p>
+      }
+      @if (uploadSuccess()) {
+        <p class="success" role="status">{{ uploadSuccess() }}</p>
+      }
     </article>
 
     <article class="card">

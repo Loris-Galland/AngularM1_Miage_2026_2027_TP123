@@ -27,6 +27,9 @@ button:disabled { opacity: 0.45; }
 .pager { margin: 1rem 0; }
 audio { width: 100%; }
 .error { color: #a33; }
+.success { color: #1d755e; }
+.status, .hint { color: #61756f; }
+.hint { display: block; margin-bottom: 0.8rem; }
 
 /* Paginator Material : couleurs du site et annulation du style global des boutons. */
 .mat-mdc-paginator { --mat-sys-primary: #1d755e; margin-top: 1rem; background: transparent; }
