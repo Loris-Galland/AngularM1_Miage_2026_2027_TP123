@@ -13,6 +13,7 @@ import {
 import { Track } from '../../shared/models/track.model';
 import { TrackService } from '../../shared/services/track.service';
 import { AUDIO_TYPES, validateAudioFile } from '../../shared/validators/audio-file';
+import { IMAGE_TYPES, validateImageFile } from '../../shared/validators/image-file';
 import { FileSizePipe } from '../../shared/pipes/file-size.pipe';
 import { AudioFormatPipe } from '../../shared/pipes/audio-format.pipe';
 
@@ -51,6 +52,15 @@ export class TracksPageComponent {
   readonly acceptedTypes = AUDIO_TYPES.join(',');
   private readonly fileInput = viewChild.required<ElementRef<HTMLInputElement>>('fileInput');
 
+  // Cover images: optional file in the upload form, and one ObjectURL per displayed track.
+  readonly imageTypes = IMAGE_TYPES.join(',');
+  readonly coverFile = signal<File | null>(null);
+  readonly coverError = signal('');
+  readonly covers = signal<Record<string, string>>({});
+  readonly coverUploadingId = signal<string | null>(null);
+  private coverRequests = new Subscription();
+  private readonly coverInput = viewChild.required<ElementRef<HTMLInputElement>>('coverInput');
+
   constructor() {
     this.load();
 
@@ -72,7 +82,15 @@ export class TracksPageComponent {
     inject(DestroyRef).onDestroy(() => {
       const url = this.audioUrl();
       if (url) URL.revokeObjectURL(url);
+      this.clearCovers();
     });
+  }
+
+  chooseCover(event: Event): void {
+    const file = (event.target as HTMLInputElement).files?.[0] ?? null;
+    this.uploadSuccess.set('');
+    this.coverError.set(file ? (validateImageFile(file) ?? '') : '');
+    this.coverFile.set(file);
   }
 
   choose(event: Event): void {
@@ -93,6 +111,7 @@ export class TracksPageComponent {
       next: (response) => {
         console.debug('[TracksPage] Pistes chargées', response.items.length);
         this.tracks.set(response.items);
+        this.loadCovers(response.items);
         this.pages.set(response.pages);
         this.total.set(response.total);
         this.loading.set(false);
@@ -140,13 +159,23 @@ export class TracksPageComponent {
 
         const track = event.body;
         console.debug('[TracksPage] Piste envoyée', track.id);
-        this.uploading.set(false);
-        this.uploadSuccess.set(`« ${track.title} » a bien été ajoutée à votre bibliothèque.`);
-        this.title.setValue('');
-        this.file.set(null);
-        this.fileInput().nativeElement.value = '';
-        this.page.set(1);
-        this.load();
+        const cover = this.coverFile();
+        if (!cover) {
+          this.finishUpload(`« ${track.title} » a bien été ajoutée à votre bibliothèque.`);
+          return;
+        }
+
+        // Second request: the cover has its own route, the track itself already exists.
+        this.service.uploadCover(track.id, cover).subscribe({
+          next: () => this.finishUpload(`« ${track.title} » a bien été ajoutée avec son image.`),
+          error: (error: { error?: { message?: string } }) => {
+            console.error('[TracksPage] Envoi de la couverture impossible', error);
+            this.finishUpload(`« ${track.title} » a bien été ajoutée à votre bibliothèque.`);
+            this.uploadError.set(
+              `L'image n'a pas pu être envoyée (${error.error?.message ?? 'erreur inconnue'}). Vous pouvez réessayer depuis la card.`,
+            );
+          },
+        });
       },
       error: (error: { error?: { message?: string } }) => {
         console.error('[TracksPage] Envoi impossible', error);
@@ -154,6 +183,72 @@ export class TracksPageComponent {
         this.uploadError.set(error.error?.message ?? "L'envoi a échoué, réessayez.");
       },
     });
+  }
+
+  private finishUpload(message: string): void {
+    this.uploading.set(false);
+    this.uploadSuccess.set(message);
+    this.title.setValue('');
+    this.file.set(null);
+    this.fileInput().nativeElement.value = '';
+    this.coverFile.set(null);
+    this.coverInput().nativeElement.value = '';
+    this.page.set(1);
+    this.load();
+  }
+
+  /** Adds or replaces the cover of an existing track from its card. */
+  changeCover(track: Track, event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+
+    const invalid = validateImageFile(file);
+    this.notice.set('');
+    this.error.set(invalid ?? '');
+    if (invalid) return;
+
+    this.coverUploadingId.set(track.id);
+    this.service.uploadCover(track.id, file).subscribe({
+      next: (updated) => {
+        this.coverUploadingId.set(null);
+        this.tracks.update((list) => list.map((t) => (t.id === updated.id ? updated : t)));
+        this.fetchCover(updated.id);
+        this.notice.set(`L'image de « ${track.title} » a été mise à jour.`);
+      },
+      error: (error: { error?: { message?: string } }) => {
+        console.error('[TracksPage] Changement de couverture impossible', error);
+        this.coverUploadingId.set(null);
+        this.error.set(error.error?.message ?? `Impossible d'envoyer l'image de « ${track.title} ».`);
+      },
+    });
+  }
+
+  /** Fetches the covers of the displayed page only, after revoking the previous page's URLs. */
+  private loadCovers(tracks: Track[]): void {
+    this.clearCovers();
+    tracks.filter((track) => track.hasCover).forEach((track) => this.fetchCover(track.id));
+  }
+
+  private fetchCover(id: string): void {
+    this.coverRequests.add(
+      this.service.cover(id).subscribe({
+        next: (blob) => {
+          const previous = this.covers()[id];
+          if (previous) URL.revokeObjectURL(previous);
+          this.covers.update((covers) => ({ ...covers, [id]: URL.createObjectURL(blob) }));
+        },
+        error: (error) => console.error('[TracksPage] Couverture indisponible', id, error),
+      }),
+    );
+  }
+
+  private clearCovers(): void {
+    this.coverRequests.unsubscribe();
+    this.coverRequests = new Subscription();
+    Object.values(this.covers()).forEach((url) => URL.revokeObjectURL(url));
+    this.covers.set({});
   }
 
   play(track: Track): void {

@@ -32,6 +32,20 @@ export class TrackService {
     });
   }
 
+  /** Adds or replaces the cover image (multipart field `cover`). */
+  uploadCover(id: string, file: File) {
+    const body = new FormData();
+    body.append('cover', file);
+    return this.http.put<Track>(`/api/tracks/${id}/cover`, body);
+  }
+
+  /** The cover is protected by the JWT, so it is fetched as a Blob like the audio. */
+  cover(id: string) {
+    return this.http.get(`/api/tracks/${id}/cover`, {
+      responseType: 'blob',
+    });
+  }
+
   /** DELETE /api/tracks/:id answers 204 with no body. */
   remove(id: string) {
     return this.http.delete<void>(`/api/tracks/${id}`);
