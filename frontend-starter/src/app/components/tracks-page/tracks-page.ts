@@ -1,4 +1,4 @@
-import { Component, DestroyRef, ElementRef, inject, signal, viewChild } from '@angular/core';
+import { Component, computed, DestroyRef, ElementRef, inject, signal, viewChild } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { HttpEventType } from '@angular/common/http';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -6,6 +6,7 @@ import { debounceTime, distinctUntilChanged, map, Subscription } from 'rxjs';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatDialog } from '@angular/material/dialog';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import {
   ConfirmDialogComponent,
   ConfirmDialogData,
@@ -17,6 +18,9 @@ import { IMAGE_TYPES, validateImageFile } from '../../shared/validators/image-fi
 import { FileSizePipe } from '../../shared/pipes/file-size.pipe';
 import { AudioFormatPipe } from '../../shared/pipes/audio-format.pipe';
 
+/** The four states of an upload asked by Mission 6. */
+export type UploadStatus = 'idle' | 'uploading' | 'success' | 'error';
+
 @Component({
   imports: [ReactiveFormsModule, MatPaginatorModule, DatePipe, FileSizePipe, AudioFormatPipe],
   templateUrl: './tracks-page.html',
@@ -25,6 +29,7 @@ import { AudioFormatPipe } from '../../shared/pipes/audio-format.pipe';
 export class TracksPageComponent {
   private readonly service = inject(TrackService);
   private readonly dialog = inject(MatDialog);
+  private readonly snackBar = inject(MatSnackBar);
 
   readonly tracks = signal<Track[]>([]);
   readonly page = signal(1);
@@ -38,13 +43,13 @@ export class TracksPageComponent {
   readonly audioLoadingId = signal<string | null>(null);
   readonly audioError = signal('');
   readonly deletingId = signal<string | null>(null);
-  readonly notice = signal('');
   readonly search = new FormControl('', { nonNullable: true });
   readonly query = signal('');
   private listRequest?: Subscription;
   readonly title = new FormControl('', { nonNullable: true });
   readonly file = signal<File | null>(null);
-  readonly uploading = signal(false);
+  readonly uploadStatus = signal<UploadStatus>('idle');
+  readonly uploading = computed(() => this.uploadStatus() === 'uploading');
   readonly progress = signal(0);
   readonly fileError = signal('');
   readonly uploadError = signal('');
@@ -96,6 +101,7 @@ export class TracksPageComponent {
   choose(event: Event): void {
     const file = (event.target as HTMLInputElement).files?.[0] ?? null;
     console.debug('[TracksPage] Fichier sélectionné', file?.name);
+    this.uploadStatus.set('idle');
     this.uploadSuccess.set('');
     this.uploadError.set('');
     this.fileError.set(file ? (validateAudioFile(file) ?? '') : '');
@@ -143,7 +149,8 @@ export class TracksPageComponent {
     }
 
     const title = this.title.value.trim() || file.name;
-    this.uploading.set(true);
+    this.uploadStatus.set('uploading');
+    this.title.disable();
     this.progress.set(0);
     this.uploadError.set('');
     this.uploadSuccess.set('');
@@ -178,15 +185,17 @@ export class TracksPageComponent {
         });
       },
       error: (error: { error?: { message?: string } }) => {
-        console.error('[TracksPage] Envoi impossible', error);
-        this.uploading.set(false);
+        console.error('[TracksPage] Envoi impossible', error.error?.message);
+        this.uploadStatus.set('error');
+        this.title.enable();
         this.uploadError.set(error.error?.message ?? "L'envoi a échoué, réessayez.");
       },
     });
   }
 
   private finishUpload(message: string): void {
-    this.uploading.set(false);
+    this.uploadStatus.set('success');
+    this.title.enable();
     this.uploadSuccess.set(message);
     this.title.setValue('');
     this.file.set(null);
@@ -205,7 +214,6 @@ export class TracksPageComponent {
     if (!file) return;
 
     const invalid = validateImageFile(file);
-    this.notice.set('');
     this.error.set(invalid ?? '');
     if (invalid) return;
 
@@ -215,7 +223,7 @@ export class TracksPageComponent {
         this.coverUploadingId.set(null);
         this.tracks.update((list) => list.map((t) => (t.id === updated.id ? updated : t)));
         this.fetchCover(updated.id);
-        this.notice.set(`L'image de « ${track.title} » a été mise à jour.`);
+        this.notify(`L'image de « ${track.title} » a été mise à jour.`);
       },
       error: (error: { error?: { message?: string } }) => {
         console.error('[TracksPage] Changement de couverture impossible', error);
@@ -278,6 +286,7 @@ export class TracksPageComponent {
 
   /** Asks for confirmation in a Material dialog, then deletes. */
   remove(track: Track): void {
+    if (this.deletingId()) return;
     this.dialog
       .open<ConfirmDialogComponent, ConfirmDialogData, boolean>(ConfirmDialogComponent, {
         data: {
@@ -293,27 +302,45 @@ export class TracksPageComponent {
   }
 
   private delete(track: Track): void {
+    // Guard against a second click while the first DELETE is still running.
+    if (this.deletingId()) return;
     this.deletingId.set(track.id);
-    this.error.set('');
-    this.notice.set('');
 
     this.service.remove(track.id).subscribe({
       next: () => {
         console.debug('[TracksPage] Piste supprimée', track.id);
-        if (this.current()?.id === track.id) this.stopPlayback();
-        // Last track of a page other than the first: go back one page instead of showing an empty one.
-        if (this.tracks().length === 1 && this.page() > 1) this.page.update((page) => page - 1);
-        this.deletingId.set(null);
-        this.notice.set(`« ${track.title} » a été supprimée.`);
-        this.load();
+        this.afterRemoval(track);
+        this.notify(`« ${track.title} » a été supprimée.`);
       },
-      error: (error: { error?: { message?: string } }) => {
-        console.error('[TracksPage] Suppression impossible', error);
+      error: (error: { status?: number; error?: { message?: string } }) => {
+        console.error('[TracksPage] Suppression impossible', error.status);
+        if (error.status === 404) {
+          // Already deleted (other tab) or not ours: the backend answers 404 in both cases.
+          this.afterRemoval(track);
+          this.notify(`« ${track.title} » n'existe plus ou ne vous appartient pas, la liste a été mise à jour.`, true);
+          return;
+        }
         this.deletingId.set(null);
-        this.error.set(error.error?.message ?? `Impossible de supprimer « ${track.title} ».`);
+        this.notify(error.error?.message ?? `Impossible de supprimer « ${track.title} ».`, true);
         // The backend can delete the metadata and still fail on the file: refresh to stay in sync.
         this.load();
       },
+    });
+  }
+
+  /** Common to a successful DELETE and a 404: the track is gone, the page is refreshed. */
+  private afterRemoval(track: Track): void {
+    if (this.current()?.id === track.id) this.stopPlayback();
+    // Last track of a page other than the first: go back one page instead of showing an empty one.
+    if (this.tracks().length === 1 && this.page() > 1) this.page.update((page) => page - 1);
+    this.deletingId.set(null);
+    this.load();
+  }
+
+  private notify(message: string, isError = false): void {
+    this.snackBar.open(message, 'OK', {
+      duration: isError ? 6000 : 4000,
+      panelClass: isError ? 'snack-error' : 'snack-success',
     });
   }
 
