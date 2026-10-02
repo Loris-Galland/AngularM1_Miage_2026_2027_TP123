@@ -108,11 +108,21 @@
                   }
                   @if (covers()[track.id]; as coverUrl) {
                     <img [src]="coverUrl" [alt]="'Pochette de ' + track.title" />
+                    @if (track.coverSource === 'web') {
+                      <!-- The image belongs to its rights holders: its origin is credited. -->
+                      <p class="credit">
+                        Pochette&nbsp;:
+                        <a href="https://coverartarchive.org" target="_blank" rel="noopener noreferrer">Cover Art Archive</a>
+                      </p>
+                    }
                   } @else {
                     <span class="cover-placeholder" aria-hidden="true">♪</span>
                   }
                 </div>
                 <h3>{{ track.title }}</h3>
+                @if (track.artist) {
+                  <p class="artist">{{ track.artist }}</p>
+                }
                 <p class="original" [title]="track.originalName">{{ track.originalName }}</p>
                 <dl>
                   <div><dt>Format</dt><dd>{{ track.mimeType | audioFormat }}</dd></div>
@@ -154,6 +164,32 @@
                     {{ track.hasCover ? "Changer l'image" : 'Ajouter une image' }}
                   }
                 </label>
+                @if (!track.hasCover) {
+                  <button
+                    type="button"
+                    class="link-button"
+                    (click)="openLookup(track)"
+                    [attr.aria-expanded]="lookupId() === track.id"
+                    [attr.aria-controls]="'lookup-' + track.id"
+                  >
+                    Chercher une pochette en ligne
+                  </button>
+                }
+                @if (lookupId() === track.id) {
+                  <form
+                    class="lookup"
+                    [id]="'lookup-' + track.id"
+                    [formGroup]="lookupForm"
+                    (ngSubmit)="searchCover(track)"
+                  >
+                    <label>Artiste<input formControlName="artist" placeholder="Ex. : Daft Punk" /></label>
+                    <label>Titre<input formControlName="title" /></label>
+                    <button type="submit" [disabled]="lookupForm.invalid || lookingUpId() === track.id">
+                      {{ lookingUpId() === track.id ? 'Recherche…' : 'Chercher' }}
+                    </button>
+                    <small class="hint">Recherche sur MusicBrainz, image de Cover Art Archive.</small>
+                  </form>
+                }
               </article>
             </li>
           } @empty {

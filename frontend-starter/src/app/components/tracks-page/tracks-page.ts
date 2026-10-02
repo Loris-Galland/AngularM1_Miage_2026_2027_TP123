@@ -3,7 +3,7 @@ import { DatePipe } from '@angular/common';
 import { HttpEventType } from '@angular/common/http';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { debounceTime, distinctUntilChanged, map, Subscription } from 'rxjs';
-import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -68,6 +68,14 @@ export class TracksPageComponent {
   readonly coverUploadingId = signal<string | null>(null);
   private coverRequests = new Subscription();
   private readonly coverInput = viewChild.required<ElementRef<HTMLInputElement>>('coverInput');
+
+  // Web cover search: one small form open at a time, below the card that asked for it.
+  readonly lookupId = signal<string | null>(null);
+  readonly lookingUpId = signal<string | null>(null);
+  readonly lookupForm = new FormGroup({
+    artist: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(200)] }),
+    title: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(200)] }),
+  });
 
   constructor() {
     this.load();
@@ -172,7 +180,11 @@ export class TracksPageComponent {
         console.debug('[TracksPage] Piste envoyée', track.id);
         const cover = this.coverFile();
         if (!cover) {
-          this.finishUpload(`« ${track.title} » a bien été ajoutée à votre bibliothèque.`);
+          this.finishUpload(
+            track.coverSource === 'id3'
+              ? `« ${track.title} » a bien été ajoutée, avec la pochette trouvée dans ses tags ID3.`
+              : `« ${track.title} » a bien été ajoutée à votre bibliothèque.`,
+          );
           return;
         }
 
@@ -233,6 +245,34 @@ export class TracksPageComponent {
         console.error('[TracksPage] Changement de couverture impossible', error);
         this.coverUploadingId.set(null);
         this.error.set(error.error?.message ?? `Impossible d'envoyer l'image de « ${track.title} ».`);
+      },
+    });
+  }
+
+  /** Opens the search form of a card, prefilled with what the tags or the file name gave. */
+  openLookup(track: Track): void {
+    this.lookupId.set(this.lookupId() === track.id ? null : track.id);
+    this.lookupForm.setValue({ artist: track.artist ?? '', title: track.title });
+  }
+
+  /** The backend searches MusicBrainz then Cover Art Archive, and stores the image like an upload. */
+  searchCover(track: Track): void {
+    if (this.lookupForm.invalid || this.lookingUpId()) return;
+    const { artist, title } = this.lookupForm.getRawValue();
+    this.lookingUpId.set(track.id);
+
+    this.service.lookupCover(track.id, artist.trim(), title.trim()).subscribe({
+      next: (updated) => {
+        this.lookingUpId.set(null);
+        this.lookupId.set(null);
+        this.tracks.update((list) => list.map((t) => (t.id === updated.id ? updated : t)));
+        this.fetchCover(updated.id);
+        this.notify(`Pochette trouvée pour « ${updated.title} ».`);
+      },
+      error: (error: { status?: number; error?: { message?: string } }) => {
+        console.error('[TracksPage] Recherche de pochette impossible', error.status);
+        this.lookingUpId.set(null);
+        this.notify(error.error?.message ?? 'La recherche de pochette a échoué, réessayez.', true);
       },
     });
   }

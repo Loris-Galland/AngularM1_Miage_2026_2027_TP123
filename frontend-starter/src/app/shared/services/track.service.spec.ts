@@ -47,6 +47,15 @@ describe('TrackService', () => {
     expect(done).toBe(true);
   });
 
+  it('lookupCover() envoie POST /api/tracks/:id/cover/lookup avec artiste et titre', () => {
+    service.lookupCover('t1', 'Daft Punk', 'Get Lucky').subscribe();
+
+    const req = http.expectOne('/api/tracks/t1/cover/lookup');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ artist: 'Daft Punk', title: 'Get Lucky' });
+    req.flush({ id: 't1', hasCover: true, coverSource: 'web' });
+  });
+
   it('upload() envoie un FormData et remonte les événements de progression', () => {
     const file = new File(['abc'], 'riff.mp3', { type: 'audio/mpeg' });
     const types: HttpEventType[] = [];

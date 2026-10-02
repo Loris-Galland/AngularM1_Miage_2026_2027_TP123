@@ -50,7 +50,10 @@ describe('TracksPageComponent', () => {
     await fixture.whenStable();
   });
 
-  afterEach(() => http.verify());
+  afterEach(() => {
+    http.verify();
+    vi.restoreAllMocks();
+  });
 
   it('affiche une erreur quand le chargement de la liste échoue', async () => {
     component.load();
@@ -124,5 +127,44 @@ describe('TracksPageComponent', () => {
     expect(component.uploadStatus()).toBe('error');
     expect(component.uploading()).toBe(false);
     expect(fixture.nativeElement.textContent).toContain('Format audio non accepté');
+  });
+
+  it("recherche de pochette : préremplit le formulaire, met à jour la card et charge l'image", async () => {
+    const first = { ...component.tracks()[0], artist: 'Daft Punk' };
+    component.tracks.set([first, component.tracks()[1]]);
+    // jsdom cannot build a real ObjectURL from the simulated Blob.
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:pochette');
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+    component.openLookup(first);
+    expect(component.lookupForm.getRawValue()).toEqual({ artist: 'Daft Punk', title: 'Blues en La' });
+
+    component.searchCover(first);
+    const req = http.expectOne('/api/tracks/t1/cover/lookup');
+    expect(req.request.method).toBe('POST');
+    req.flush({ ...first, hasCover: true, coverSource: 'web' });
+
+    // The new cover is then downloaded as a Blob, like the audio.
+    http.expectOne('/api/tracks/t1/cover').flush(new Blob(['img'], { type: 'image/jpeg' }));
+    await fixture.whenStable();
+
+    expect(component.tracks()[0].coverSource).toBe('web');
+    expect(component.covers()['t1']).toBe('blob:pochette');
+    expect(component.lookupId()).toBeNull();
+    expect(snackBar.open.mock.calls[0][0]).toContain('Pochette trouvée');
+  });
+
+  it('recherche de pochette sans résultat (404) : message du serveur dans le SnackBar', async () => {
+    const first = component.tracks()[0];
+    component.openLookup(first);
+    component.lookupForm.controls.artist.setValue('Inconnu');
+    component.searchCover(first);
+
+    http
+      .expectOne('/api/tracks/t1/cover/lookup')
+      .flush({ message: 'Aucune pochette trouvée' }, { status: 404, statusText: 'Not Found' });
+    await fixture.whenStable();
+
+    expect(snackBar.open.mock.calls[0][0]).toBe('Aucune pochette trouvée');
+    expect(component.lookingUpId()).toBeNull();
   });
 });

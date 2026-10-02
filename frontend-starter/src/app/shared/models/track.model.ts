@@ -6,5 +6,10 @@ export interface Track {
   mimeType: string;
   size: number;
   hasCover: boolean;
+  /** Where the cover comes from: manual upload, ID3 tags of the file, or Cover Art Archive. */
+  coverSource?: 'upload' | 'id3' | 'web';
+  /** Optional metadata read from the ID3 tags or the file name. */
+  artist?: string;
+  album?: string;
   createdAt: string;
 }

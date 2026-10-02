@@ -23,6 +23,12 @@ const schema = new mongoose.Schema(
     // sur le disque n'est jamais exposé. coverType sert aussi à savoir s'il y en a une.
     coverName: { type: String, select: false },
     coverType: { type: String },
+    // D'où vient la couverture : envoyée à la main, lue dans les tags ID3, ou trouvée
+    // sur Cover Art Archive (le front affiche alors le crédit de l'image).
+    coverSource: { type: String, enum: ["upload", "id3", "web"] },
+    // Métadonnées facultatives lues dans les tags ID3 ou déduites du nom du fichier.
+    artist: { type: String, trim: true, maxlength: 200 },
+    album: { type: String, trim: true, maxlength: 200 },
   },
   { timestamps: true },
 );
@@ -43,10 +49,13 @@ schema.methods.toPublic = function () {
     id: this.id,
     ownerId: String(this.ownerId),
     title: this.title,
+    artist: this.artist,
+    album: this.album,
     originalName: this.originalName,
     mimeType: this.mimeType,
     size: this.size,
     hasCover: Boolean(this.coverType),
+    coverSource: this.coverSource,
     createdAt: this.createdAt,
   };
 };
