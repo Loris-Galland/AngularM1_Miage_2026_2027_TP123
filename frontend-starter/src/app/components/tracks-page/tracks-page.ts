@@ -17,12 +17,14 @@ import { AUDIO_TYPES, validateAudioFile } from '../../shared/validators/audio-fi
 import { IMAGE_TYPES, validateImageFile } from '../../shared/validators/image-file';
 import { FileSizePipe } from '../../shared/pipes/file-size.pipe';
 import { AudioFormatPipe } from '../../shared/pipes/audio-format.pipe';
+import { AudioVisualizerService } from '../../shared/services/audio-visualizer.service';
+import { StudioSceneComponent } from '../../shared/components/studio-scene/studio-scene';
 
 /** The four states of an upload asked by Mission 6. */
 export type UploadStatus = 'idle' | 'uploading' | 'success' | 'error';
 
 @Component({
-  imports: [ReactiveFormsModule, MatPaginatorModule, DatePipe, FileSizePipe, AudioFormatPipe],
+  imports: [ReactiveFormsModule, MatPaginatorModule, DatePipe, FileSizePipe, AudioFormatPipe, StudioSceneComponent],
   templateUrl: './tracks-page.html',
   styleUrl: './tracks-page.css',
 })
@@ -30,6 +32,7 @@ export class TracksPageComponent {
   private readonly service = inject(TrackService);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
+  protected readonly visualizer = inject(AudioVisualizerService);
 
   readonly tracks = signal<Track[]>([]);
   readonly page = signal(1);
@@ -88,6 +91,7 @@ export class TracksPageComponent {
       const url = this.audioUrl();
       if (url) URL.revokeObjectURL(url);
       this.clearCovers();
+      this.visualizer.stop();
     });
   }
 
@@ -349,6 +353,7 @@ export class TracksPageComponent {
     if (url) URL.revokeObjectURL(url);
     this.audioUrl.set('');
     this.current.set(null);
+    this.visualizer.stop();
   }
 
   /** The Blob was downloaded but the browser cannot decode it. */

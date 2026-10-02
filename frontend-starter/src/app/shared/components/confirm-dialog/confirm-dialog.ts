@@ -24,8 +24,9 @@ export interface ConfirmDialogData {
     </mat-dialog-actions>
   `,
   styles: `
-    .secondary { color: #17312a; background: #e1ebe7; }
-    .danger { background: #a33; }
+    .secondary { background: var(--white); }
+    .danger { background: var(--magenta); }
+    mat-dialog-actions { gap: 0.6rem; padding: 0 1.5rem 1.4rem; }
   `,
 })
 export class ConfirmDialogComponent {
