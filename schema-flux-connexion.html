@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Flux de connexion — Guitar Practice Cloud</title>
+<title>Flux de connexion, Guitar Practice Cloud</title>
 <style>
   :root {
     --bg: #F6F1E7;
@@ -269,7 +269,7 @@
 <body>
   <div class="page">
     <header class="intro">
-      <div class="eyebrow"><span class="dot"></span>TP1 — Mission 0</div>
+      <div class="eyebrow"><span class="dot"></span>TP1, Mission 0</div>
       <h1>Flux de connexion, clic par clic</h1>
       <p class="subtitle">
         Ce qui se passe entre le moment où je clique sur « Se connecter » sur
@@ -293,7 +293,7 @@
         <div class="step-badge">2</div>
         <p class="step-title">Le composant lit le formulaire</p>
         <p class="step-where mono">LoginPageComponent.submit()</p>
-        <p class="step-detail">Récupère <code>email</code>/<code>password</code>, puis délègue tout à <code>AuthService</code> — le composant n'appelle jamais <code>HttpClient</code> directement.</p>
+        <p class="step-detail">Récupère <code>email</code>/<code>password</code>, puis délègue tout à <code>AuthService</code>, le composant n'appelle jamais <code>HttpClient</code> directement.</p>
         <div class="snippet mono">this.auth.login(values.email, values.password).subscribe({ ... })</div>
       </div>
 
@@ -309,7 +309,7 @@
         <p class="step-title">L'intercepteur JWT passe la main</p>
         <p class="step-where mono">authInterceptor</p>
         <p class="step-detail">
-          Route publique donc pas de token encore requis — l'intercepteur laisse
+          Route publique donc pas de token encore requis, l'intercepteur laisse
           la requête filer sans en-tête <code>Authorization</code> (ou avec un ancien
           token que le backend ignore ici).
         </p>
@@ -319,7 +319,7 @@
         <div class="step-badge">5</div>
         <p class="step-title">La requête sort du navigateur</p>
         <p class="step-where mono">proxy.conf.json (dev)</p>
-        <div class="snippet mono">/api/* → http://localhost:3000</div>
+        <div class="snippet mono">/api/* vers http://localhost:3000</div>
       </div>
 
       <div class="step">
@@ -328,7 +328,7 @@
         <p class="step-where mono">backend · route POST /api/auth/login</p>
         <p class="step-detail">
           Cherche l'utilisateur en base via Mongoose, compare le mot de passe avec
-          <code>bcrypt.compare</code>. Si tout est bon : <code>jwt.sign()</code> génère
+          <code>bcrypt.compare</code>. Si tout est bon, <code>jwt.sign()</code> génère
           le token avec <code>JWT_SECRET</code>.
         </p>
       </div>
@@ -336,11 +336,11 @@
       <div class="step">
         <div class="step-badge">7</div>
         <p class="step-title">La réponse remonte et met à jour l'état</p>
-        <p class="step-where mono">AuthService.login() → tap(storeAuthentication)</p>
+        <p class="step-where mono">AuthService.login() puis tap(storeAuthentication)</p>
         <div class="snippet mono">localStorage.setItem('gpc_token', token)
 token.set(token)
 currentUser.set(user)</div>
-        <p class="step-detail">Les deux Signals (<code>token</code>, <code>currentUser</code>) sont mis à jour — toute l'appli qui les lit se met à jour automatiquement.</p>
+        <p class="step-detail">Les deux Signals (<code>token</code>, <code>currentUser</code>) sont mis à jour, donc toute l'appli qui les lit se met à jour automatiquement.</p>
       </div>
 
       <div class="step">
@@ -368,7 +368,7 @@ currentUser.set(user)</div>
     </div>
 
     <footer class="note">
-      Schéma réalisé pour la Mission 0 du TP1 (M1 MIAGE — Programmation Web),
+      Schéma réalisé pour la Mission 0 du TP1 (M1 MIAGE, Programmation Web),
       à partir de la lecture du code de <code>frontend-starter/</code> et <code>backend/</code>,
       sans modification du code.
     </footer>
