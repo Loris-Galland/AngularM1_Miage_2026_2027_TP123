@@ -1,5 +1,7 @@
 # Guitar Practice Cloud
 
+Auteur, Loris Galland
+
 Application web pour stocker et réécouter ses enregistrements de guitare. Chaque
 utilisateur a son compte, envoie ses fichiers audio (MP3, WAV, OGG ou M4A, 25 Mo
 maximum) et les retrouve dans une bibliothèque paginée avec lecture dans le
