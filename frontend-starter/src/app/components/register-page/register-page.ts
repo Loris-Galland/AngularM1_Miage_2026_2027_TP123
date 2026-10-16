@@ -2,9 +2,10 @@ import { Component, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../shared/services/auth.service';
+import { StudioSceneComponent } from '../../shared/components/studio-scene/studio-scene';
 
 @Component({
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, StudioSceneComponent],
   templateUrl: './register-page.html',
   styleUrl: './register-page.css',
 })

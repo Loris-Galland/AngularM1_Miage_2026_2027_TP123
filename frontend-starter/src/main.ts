@@ -1,5 +1,5 @@
 import { bootstrapApplication } from "@angular/platform-browser";
-import { provideHttpClient, withInterceptors } from "@angular/common/http";
+import { provideHttpClient, withInterceptors, withXhr } from "@angular/common/http";
 import { provideRouter } from "@angular/router";
 import { AppComponent } from './app/components/app/app';
 import { routes } from './app/routes';
@@ -11,7 +11,8 @@ import { FrenchPaginatorIntl } from './app/shared/i18n/paginator-intl';
 bootstrapApplication(AppComponent, {
   providers: [
     provideRouter(routes),
-    provideHttpClient(withInterceptors([authInterceptor, errorInterceptor])),
+    // XHR plutôt que fetch, seul backend qui remonte la progression de l'upload
+    provideHttpClient(withXhr(), withInterceptors([authInterceptor, errorInterceptor])),
     { provide: MatPaginatorIntl, useClass: FrenchPaginatorIntl },
   ],
 }).catch(console.error);

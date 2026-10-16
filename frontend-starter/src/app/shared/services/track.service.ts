@@ -46,6 +46,11 @@ export class TrackService {
     });
   }
 
+  /** Asks the backend to find a cover on MusicBrainz + Cover Art Archive. */
+  lookupCover(id: string, artist: string, title: string) {
+    return this.http.post<Track>(`/api/tracks/${id}/cover/lookup`, { artist, title });
+  }
+
   /** DELETE /api/tracks/:id answers 204 with no body. */
   remove(id: string) {
     return this.http.delete<void>(`/api/tracks/${id}`);

@@ -9,6 +9,15 @@ import crypto from "node:crypto";
 import mongoose from "mongoose";
 import { User } from "./models/User.js";
 import { Track } from "./models/Track.js";
+import {
+  cleanText,
+  detectImageType,
+  lookupCover,
+  MAX_COVER_SIZE,
+  parseFileName,
+  readTags,
+  saveCoverBuffer,
+} from "./metadata.js";
 
 // Les fichiers audio restent sur le disque du serveur dans ce TP.
 // MongoDB ne conserve que leurs métadonnées : titre, nom, taille, etc.
@@ -122,7 +131,6 @@ const upload = multer({
 
 // Images de couverture : 2 Mo maximum, JPEG, PNG ou WebP uniquement.
 // Le SVG est volontairement exclu : il peut contenir du JavaScript.
-const MAX_COVER_SIZE = 2 * 1024 * 1024;
 const allowedCovers = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 const coverUpload = multer({
@@ -147,13 +155,9 @@ const coverUpload = multer({
 async function isRealImage(filePath, mimeType) {
   const handle = await fsPromises.open(filePath, "r");
   try {
-    const { buffer } = await handle.read(Buffer.alloc(12), 0, 12, 0);
-    if (mimeType === "image/jpeg") return buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
-    if (mimeType === "image/png") return buffer.subarray(0, 4).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47]));
-    if (mimeType === "image/webp") {
-      return buffer.toString("ascii", 0, 4) === "RIFF" && buffer.toString("ascii", 8, 12) === "WEBP";
-    }
-    return false;
+    const { buffer, bytesRead } = await handle.read(Buffer.alloc(12), 0, 12, 0);
+    // Même vérification que pour les pochettes lues dans les tags ID3 (voir metadata.js).
+    return detectImageType(buffer.subarray(0, bytesRead)) === mimeType;
   } finally {
     await handle.close();
   }
@@ -388,25 +392,37 @@ export function createApp() {
     auth,
     upload.single("audio"),
     async (req, res, next) => {
+      let cover = null;
       try {
         if (!req.file) {
           console.warn(`[tracks] Upload sans fichier par ${req.auth.sub}`);
           return res.status(400).json({ message: "Fichier audio requis" });
         }
 
+        // Métadonnées : titre saisi > tag ID3 > nom du fichier ; artiste et album depuis les tags,
+        // sinon depuis un nom de fichier du type « Artiste - Titre.mp3 ».
+        const tags = await readTags(path.join(UPLOADS, req.file.filename));
+        const fromName = parseFileName(req.file.originalname);
+        // La pochette intégrée au fichier passe par les mêmes contrôles qu'une image envoyée.
+        cover = tags.picture ? await saveCoverBuffer(tags.picture, UPLOADS) : null;
+
         const track = await Track.create({
           ownerId: req.auth.sub,
-          title: req.body.title || req.file.originalname,
+          title: cleanText(req.body.title) || tags.title || fromName.title || req.file.originalname,
+          artist: tags.artist || fromName.artist,
+          album: tags.album,
           originalName: req.file.originalname,
           storedName: req.file.filename,
           mimeType: req.file.mimetype,
           size: req.file.size,
+          ...(cover && { ...cover, coverSource: "id3" }),
         });
 
-        console.log(`[tracks] Upload enregistré : ${track.id}`);
+        console.log(`[tracks] Upload enregistré : ${track.id} (tags : ${tags.title ? "oui" : "non"}, pochette : ${cover ? "oui" : "non"})`);
         res.status(201).json(track.toPublic());
       } catch (error) {
         console.error("[tracks] Erreur après l'enregistrement du fichier", error);
+        if (cover) await removeUpload(cover.coverName);
 
         // Si MongoDB échoue après l'écriture sur disque, on tente de nettoyer
         // le fichier orphelin. L'erreur de nettoyage est elle aussi loguée.
@@ -490,6 +506,7 @@ export function createApp() {
       const previousCover = track.coverName;
       track.coverName = req.file.filename;
       track.coverType = req.file.mimetype;
+      track.coverSource = "upload";
       await track.save();
       console.log(`[covers] Couverture enregistrée pour ${track.id}`);
 
@@ -498,6 +515,60 @@ export function createApp() {
     } catch (error) {
       console.error("[covers] Erreur d'enregistrement de la couverture", error);
       if (req.file) await removeUpload(req.file.filename);
+      next(error);
+    }
+  });
+
+  /**
+   * Cherche une pochette sur le Web (MusicBrainz + Cover Art Archive) et l'enregistre.
+   * Corps JSON facultatif { artist, title } pour corriger la recherche ; sinon les
+   * métadonnées de la piste sont utilisées. L'artiste corrigé est gardé sur la piste.
+   */
+  app.post("/api/tracks/:id/cover/lookup", auth, async (req, res, next) => {
+    let saved = null;
+    try {
+      const track = await Track.findOne({
+        _id: req.params.id,
+        ownerId: req.auth.sub,
+      }).select("+coverName");
+
+      if (!track) {
+        console.warn(`[covers] Recherche sur une piste introuvable ou interdite : ${req.params.id}`);
+        return res.status(404).json({ message: "Piste inconnue" });
+      }
+
+      const artist = cleanText(req.body?.artist) || track.artist;
+      const title = cleanText(req.body?.title) || track.title;
+      if (!artist || !title) {
+        return res.status(400).json({ message: "Artiste et titre requis pour chercher une pochette" });
+      }
+
+      let found;
+      try {
+        found = await lookupCover(artist, title);
+      } catch (error) {
+        // Service externe en panne ou trop lent : ce n'est pas une erreur du client.
+        console.error("[covers] Service de pochettes indisponible", error);
+        return res.status(502).json({ message: "Le service de pochettes ne répond pas, réessayez plus tard" });
+      }
+      if (!found) {
+        return res.status(404).json({ message: `Aucune pochette trouvée pour « ${title} » de ${artist}` });
+      }
+
+      saved = await saveCoverBuffer(found.buffer, UPLOADS);
+      if (!saved) return res.status(502).json({ message: "La pochette reçue n'est pas une image valide" });
+
+      const previousCover = track.coverName;
+      Object.assign(track, saved, { coverSource: "web", artist });
+      await track.save();
+      saved = null;
+      if (previousCover) await removeUpload(previousCover);
+
+      console.log(`[covers] Pochette Web enregistrée pour ${track.id}`);
+      res.json(track.toPublic());
+    } catch (error) {
+      console.error("[covers] Erreur de recherche de pochette", error);
+      if (saved) await removeUpload(saved.coverName);
       next(error);
     }
   });

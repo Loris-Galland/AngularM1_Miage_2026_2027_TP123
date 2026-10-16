@@ -1,16 +1,16 @@
-# TP2 — Mes missions
+# TP2, mes missions
 
 ## Préparation
 
 Avant de commencer j'ai récupéré deux mp3 libres de droits en plus de song1 et song2 qui étaient déjà dans le starter. Je les ai rangés dans frontend-starter/fichiers-audio-de-test avec des noms simples (coffee-time.mp3 et summer-breeze.mp3), comme ça j'ai quatre fichiers sous les 25 Mo pour tester l'upload et avoir assez de pistes pour voir plusieurs pages.
 
-## Mission 2 — Bibliothèque paginée
+## Mission 2, bibliothèque paginée
 
 Le but c'est que la page tracks affiche les pistes page par page, et surtout que chaque changement de page refasse une vraie requête au backend. Interdit de tout récupérer d'un coup et de découper la liste côté Angular. Et on touche pas au backend.
 
 Ce qui était déjà là
 
-Comme au TP1 j'ai d'abord regardé ce que le starter faisait déjà. TrackService.list(page, limit) envoie bien page et limit en query params avec HttpClient, donc le flux composant → TrackService → HttpClient → GET /api/tracks?page=...&limit=... existait déjà. Le composant avait aussi les signals tracks, page, pages et loading, un @for avec @empty pour la liste vide, et des boutons pour changer de page.
+Comme au TP1 j'ai d'abord regardé ce que le starter faisait déjà. TrackService.list(page, limit) envoie bien page et limit en query params avec HttpClient, donc le flux existait déjà. Le composant appelle TrackService, qui passe par HttpClient pour faire le GET /api/tracks?page=...&limit=... Le composant avait aussi les signals tracks, page, pages et loading, un @for avec @empty pour la liste vide, et des boutons pour changer de page.
 
 J'ai aussi été voir dans app.js comment le backend calcule la pagination. Il fait un skip((page - 1) * limit) et un limit(limit) sur la requête Mongo, en parallèle d'un countDocuments pour avoir le total, et il renvoie pages = au moins 1. Du coup même avec une bibliothèque vide on a "Page 1 / 1", pas de bug de ce côté là.
 
@@ -24,7 +24,7 @@ Avant, le "Chargement…" s'affichait en même temps que la liste, donc on pouva
 
 Les boutons Précédent et Suivant
 
-Je les ai renommés "Précédent" et "Suivant" comme dans le sujet (avant c'était "Préc." et "Suiv."). Ils sont désactivés aux bornes, Précédent sur la page 1 et Suivant sur la dernière page, et aussi pendant un chargement pour éviter qu'on spamme les clics et qu'on lance plusieurs requêtes en même temps. Dans go() j'ai rajouté une vérif en plus : si la page demandée est en dehors de 1 à pages, ou si ça charge déjà, on fait rien. Comme ça même si on appelle go() autrement que par le bouton, on peut pas sortir des bornes.
+Je les ai renommés "Précédent" et "Suivant" comme dans le sujet (avant c'était "Préc." et "Suiv."). Ils sont désactivés aux bornes, Précédent sur la page 1 et Suivant sur la dernière page, et aussi pendant un chargement pour éviter qu'on spamme les clics et qu'on lance plusieurs requêtes en même temps. Dans go() j'ai rajouté une vérif en plus. Si la page demandée est en dehors de 1 à pages, ou si ça charge déjà, on fait rien. Comme ça même si on appelle go() autrement que par le bouton, on peut pas sortir des bornes.
 
 Le limit explicite
 
@@ -38,41 +38,41 @@ Les preuves
 
 J'ai uploadé 6 pistes pour avoir 2 pages, puis j'ai fait les captures avec le Network ouvert, filtré sur tracks et cache désactivé.
 
-Sur la première on voit les trois requêtes à la suite quand je fais recharger, Suivant puis Précédent : page=1, page=2, page=1, toutes en 200. Ça prouve qu'Angular refait une requête à chaque clic au lieu de découper la liste lui-même.
+Sur la première on voit les trois requêtes à la suite quand je fais recharger, Suivant puis Précédent, donc page=1, page=2, page=1, toutes en 200. Ça prouve qu'Angular refait une requête à chaque clic au lieu de découper la liste lui-même.
 
 ![Requêtes de pagination dans Network](screenshots/tp2/pagination1.PNG)
 
-Sur la deuxième je suis sur la page 2, et dans le Preview de la requête on voit ce que le serveur renvoie : une seule piste dans items, page 2, pages 2 et total 6.
+Sur la deuxième je suis sur la page 2, et dans le Preview de la requête on voit ce que le serveur renvoie, une seule piste dans items, page 2, pages 2 et total 6.
 
 ![Réponse du serveur pour la page 2](screenshots/tp2/pagination_page2.PNG)
 
-Et la dernière montre l'interface sur la page 2 : "Page 2 / 2", Précédent actif et Suivant grisé parce que c'est la dernière page.
+Et la dernière montre l'interface sur la page 2, avec "Page 2 / 2", Précédent actif et Suivant grisé parce que c'est la dernière page.
 
 ![Boutons désactivés sur la dernière page](screenshots/tp2/pagination_interface.PNG)
 
 Ces captures c'est la version de base avec mes propres boutons, avant que je fasse les deux options avancées juste en dessous.
 
-## Mission 2 — AVANCÉ — Pagination Mongoose
+## Mission 2, AVANCÉ, pagination Mongoose
 
 Là c'est la seule partie du TP2 où le sujet autorise à toucher au backend. Le but c'est de remplacer la pagination faite à la main par le plugin mongoose-aggregate-paginate-v2.
 
-Avant, la route GET /api/tracks faisait deux requêtes en parallèle avec Promise.all : un find() avec skip et limit pour récupérer les pistes de la page, et un countDocuments() pour avoir le total. Ensuite elle calculait pages elle-même avec Math.ceil(total / limit).
+Avant, la route GET /api/tracks faisait deux requêtes en parallèle avec Promise.all, un find() avec skip et limit pour récupérer les pistes de la page, et un countDocuments() pour avoir le total. Ensuite elle calculait pages elle-même avec Math.ceil(total / limit).
 
-Maintenant j'ai installé le plugin, je l'ai branché sur le schéma Track avec schema.plugin(aggregatePaginate), et dans la route je construis un pipeline d'agrégation en trois étapes : un $match pour ne garder que les pistes de l'utilisateur connecté, un $sort pour avoir les plus récentes en premier, et un $project pour virer storedName (le nom du fichier sur le disque, qu'on doit jamais envoyer au front). Ensuite Track.aggregatePaginate() s'occupe tout seul du skip, du limit et du comptage.
+Maintenant j'ai installé le plugin, je l'ai branché sur le schéma Track avec schema.plugin(aggregatePaginate), et dans la route je construis un pipeline d'agrégation en trois étapes. Un $match pour ne garder que les pistes de l'utilisateur connecté, un $sort pour avoir les plus récentes en premier, et un $project pour virer storedName (le nom du fichier sur le disque, qu'on doit jamais envoyer au front). Ensuite Track.aggregatePaginate() s'occupe tout seul du skip, du limit et du comptage.
 
-Un piège que j'ai vu en passant : dans un aggregate, Mongoose convertit pas automatiquement l'id en ObjectId comme il le fait avec find(). Du coup si on met juste req.auth.sub (qui est une string) dans le $match, ça trouve rien. Faut faire new mongoose.Types.ObjectId(req.auth.sub).
+Un piège que j'ai vu en passant, dans un aggregate Mongoose convertit pas automatiquement l'id en ObjectId comme il le fait avec find(). Du coup si on met juste req.auth.sub (qui est une string) dans le $match, ça trouve rien. Faut faire new mongoose.Types.ObjectId(req.auth.sub).
 
-Le plugin renvoie de base des champs qui s'appellent docs, totalDocs et totalPages. Avec l'option customLabels je les ai renommés en items, total et pages, comme ça le format de base du contrat reste le même et le front casse pas. Par contre il renvoie en plus des infos bonus : hasPrevPage, hasNextPage, prevPage, nextPage et pagingCounter (le numéro de la première piste de la page). Du coup j'ai mis à jour API_CONTRACT.md pour documenter tout ça, et le modèle Page côté Angular.
+Le plugin renvoie de base des champs qui s'appellent docs, totalDocs et totalPages. Avec l'option customLabels je les ai renommés en items, total et pages, comme ça le format de base du contrat reste le même et le front casse pas. Par contre il renvoie en plus des infos bonus comme hasPrevPage, hasNextPage, prevPage, nextPage et pagingCounter (le numéro de la première piste de la page). Du coup j'ai mis à jour API_CONTRACT.md pour documenter tout ça, et le modèle Page côté Angular.
 
-Pour vérifier j'ai ajouté un petit test dans api.test.js qui regarde que Track.aggregatePaginate existe bien, les 3 tests passent. Et j'ai appelé la route avec le compte demo qui a 6 pistes : page 1 donne 5 pistes avec hasNextPage à true, page 2 donne 1 piste avec nextPage à null, avec limit=10 on a les 6 d'un coup sur une seule page, sans token c'est toujours 401, et aucun storedName ni _id dans les réponses.
+Pour vérifier j'ai ajouté un petit test dans api.test.js qui regarde que Track.aggregatePaginate existe bien, les 3 tests passent. Et j'ai appelé la route avec le compte demo qui a 6 pistes. La page 1 donne 5 pistes avec hasNextPage à true, page 2 donne 1 piste avec nextPage à null, avec limit=10 on a les 6 d'un coup sur une seule page, sans token c'est toujours 401, et aucun storedName ni _id dans les réponses.
 
-## Mission 2 — AVANCÉ — Angular Material
+## Mission 2, AVANCÉ, Angular Material
 
 Le deuxième bonus c'était d'utiliser le composant Paginator d'Angular Material au lieu de mes boutons Précédent / Suivant faits main. J'ai choisi de remplacer mes boutons plutôt que de garder les deux, sinon ça fait doublon à l'écran.
 
 J'ai installé @angular/material et @angular/cdk en version 22 pour que ça colle avec notre Angular 22. J'ai pas utilisé ng add parce que ça modifie plein de fichiers tout seul, j'ai préféré ajouter moi même le thème prédéfini azure-blue dans angular.json. Dans styles.css j'ai remis le vert du site comme couleur principale du paginator, et j'ai annulé le style global des boutons (fond vert, texte blanc) juste pour les boutons du paginator, sinon ses flèches avaient un gros fond vert. J'ai mis ça dans un :where() pour que ma règle soit pas plus forte que les styles de Material eux-mêmes.
 
-Dans le composant, limit est devenu un signal parce que maintenant l'utilisateur peut choisir 5, 10 ou 20 pistes par page (20 c'est le max accepté par le backend). J'ai ajouté un signal total, parce que le paginator a besoin du nombre total de pistes pour calculer lui-même le nombre de pages. La fonction go() a été remplacée par onPage() qui reçoit l'événement du paginator. Petit truc à savoir : le paginator compte les pages à partir de 0 (pageIndex) alors que notre API commence à 1, donc je fais pageIndex + 1.
+Dans le composant, limit est devenu un signal parce que maintenant l'utilisateur peut choisir 5, 10 ou 20 pistes par page (20 c'est le max accepté par le backend). J'ai ajouté un signal total, parce que le paginator a besoin du nombre total de pistes pour calculer lui-même le nombre de pages. La fonction go() a été remplacée par onPage() qui reçoit l'événement du paginator. Petit truc à savoir, le paginator compte les pages à partir de 0 (pageIndex) alors que notre API commence à 1, donc je fais pageIndex + 1.
 
 Le paginator est désactivé pendant un chargement, et ses flèches sont grisées toutes seules aux bornes, donc on garde bien ce que demandait la mission de base. J'ai aussi gardé un petit "Page X / Y" en dessous pour que le signal pages soit toujours visible.
 
@@ -80,11 +80,11 @@ Par défaut les textes du paginator sont en anglais ("Items per page", "1 – 5 
 
 Chaque clic sur une flèche ou changement du nombre par page refait toujours une vraie requête au serveur avec page et limit, c'est toujours le backend qui découpe.
 
-Voilà le rendu final avec le paginator en français, sur la page 1 avec 6 pistes : la flèche précédente est grisée et on voit bien "1 – 5 sur 6".
+Voilà le rendu final avec le paginator en français, sur la page 1 avec 6 pistes. La flèche précédente est grisée et on voit bien "1 – 5 sur 6".
 
 ![Paginator Angular Material](screenshots/tp2/paginator.PNG)
 
-## Mission 3 — Upload et lecture audio
+## Mission 3, upload et lecture audio
 
 Ici le sujet dit bien de pas refaire ce qui existe déjà et de pas toucher au contrat HTTP. Le starter savait déjà envoyer un fichier et le lire, donc j'ai d'abord repéré où tout se passe, et après j'ai juste complété ce qui manquait côté front.
 
@@ -94,19 +94,19 @@ Le choix du fichier c'est dans tracks-page.html, l'input type file avec (change)
 
 La construction du FormData et l'appel HTTP d'upload c'est dans track.service.ts, la méthode upload(file, title). Elle crée un FormData, fait append('audio', file) et append('title', title), puis un http.post vers /api/tracks. C'est la méthode upload() du composant qui l'appelle.
 
-La récupération du Blob c'est la méthode audio(id) de track.service.ts, un http.get vers /api/tracks/:id/audio avec responseType: 'blob', donc Angular me rend le fichier binaire au lieu d'essayer de le lire comme du JSON.
+La récupération du Blob c'est la méthode audio(id) de track.service.ts, un http.get vers /api/tracks/:id/audio avec responseType à 'blob', donc Angular me rend le fichier binaire au lieu d'essayer de le lire comme du JSON.
 
-La création de l'ObjectURL, l'affectation au lecteur et la révocation de l'ancienne URL c'est dans play() de tracks-page.ts : on révoque l'URL précédente avec URL.revokeObjectURL, on crée la nouvelle avec URL.createObjectURL(blob), et on la met dans le signal audioUrl, qui est branché sur le [src] de la balise audio dans le template.
+La création de l'ObjectURL, l'affectation au lecteur et la révocation de l'ancienne URL c'est dans play() de tracks-page.ts. On révoque l'URL précédente avec URL.revokeObjectURL, on crée la nouvelle avec URL.createObjectURL(blob), et on la met dans le signal audioUrl, qui est branché sur le [src] de la balise audio dans le template.
 
 Le flux complet
 
-À l'envoi ça donne : le composant (choose puis upload) → TrackService.upload qui construit le FormData → HttpClient qui fait le POST en multipart/form-data → l'intercepteur qui ajoute le JWT → l'API. Côté backend, Multer lit le multipart, vérifie le fichier, l'écrit sur le disque avec un nom aléatoire, et la route enregistre les infos (titre, nom d'origine, type, taille) dans MongoDB.
+À l'envoi, le composant (choose puis upload) appelle TrackService.upload qui construit le FormData. Ensuite HttpClient fait le POST en multipart/form-data, l'intercepteur ajoute le JWT, et la requête arrive à l'API. Côté backend, Multer lit le multipart, vérifie le fichier, l'écrit sur le disque avec un nom aléatoire, et la route enregistre les infos (titre, nom d'origine, type, taille) dans MongoDB.
 
-À la lecture c'est l'inverse : clic sur Écouter → TrackService.audio → HttpClient fait le GET avec le JWT → l'API vérifie que la piste m'appartient et envoie le fichier → HttpClient me donne un Blob → je crée une ObjectURL (une adresse du genre blob:http://localhost:4200/...) qui pointe vers ce Blob en mémoire → je la donne au lecteur audio.
+À la lecture c'est l'inverse. Quand je clique sur Écouter, TrackService.audio demande à HttpClient de faire le GET avec le JWT. L'API vérifie que la piste m'appartient et envoie le fichier, HttpClient me donne un Blob, et je crée une ObjectURL (une adresse du genre blob:http://localhost:4200/...) qui pointe vers ce Blob en mémoire. Enfin je la donne au lecteur audio.
 
 L'intercepteur et pourquoi un src direct marche pas
 
-C'est authInterceptor dans shared/interceptors/auth.interceptor.ts qui ajoute le header Authorization: Bearer suivi du token à toutes les requêtes faites avec HttpClient. Dans l'onglet Network, sur la requête /api/tracks/.../audio, on voit bien ce header dans les Request Headers.
+C'est authInterceptor dans shared/interceptors/auth.interceptor.ts qui ajoute le header Authorization avec Bearer suivi du token à toutes les requêtes faites avec HttpClient. Dans l'onglet Network, sur la requête /api/tracks/.../audio, on voit bien ce header dans les Request Headers.
 
 Si je mettais directement src="/api/tracks/123/audio" sur la balise audio, c'est le navigateur lui-même qui ferait la requête, pas Angular. Du coup ça passe pas par HttpClient, donc pas par l'intercepteur, donc pas de header Authorization. Le navigateur envoie tout seul les cookies, mais nous le token il est dans le localStorage, pas dans un cookie, et y'a aucun moyen de dire à une balise audio d'ajouter un header. Résultat le backend répondrait 401. C'est pour ça qu'on passe par HttpClient + Blob + ObjectURL. Mettre le token dans l'URL (genre ?token=...) serait une mauvaise idée parce qu'il finirait dans l'historique et dans les logs.
 
@@ -114,17 +114,17 @@ Les contrôles du backend
 
 Tout est dans app.js. MAX_FILE_SIZE vaut 25 Mo et est passé à Multer dans limits.fileSize. La liste allowed contient les types MIME acceptés (audio/mpeg, audio/wav, audio/x-wav, audio/ogg, audio/mp4, audio/x-m4a), et le fileFilter de Multer refuse tout le reste avec "Format audio non accepté". upload.single("audio") dit à Multer que le fichier doit être dans le champ audio, et le titre est lu dans req.body.title (si y'a pas de titre il prend le nom du fichier). Si y'a pas de fichier la route répond 400 "Fichier audio requis", et le gestionnaire d'erreurs à la fin transforme les erreurs de Multer (fichier trop gros, mauvais format) en 400.
 
-Côté front j'ai vérifié que le FormData contient exactement les champs audio et title, c'était déjà bon. On le voit dans le Payload de la requête POST tracks : audio (binary) et title. Et à gauche on voit le message de succès, le champ fichier revenu à "Aucun fichier choisi" et la nouvelle card en premier.
+Côté front j'ai vérifié que le FormData contient exactement les champs audio et title, c'était déjà bon. On le voit dans le Payload de la requête POST tracks, avec audio (binary) et title. Et à gauche on voit le message de succès, le champ fichier revenu à "Aucun fichier choisi" et la nouvelle card en premier.
 
 ![Upload en multipart avec audio et title](screenshots/tp2/upload_multipart.PNG)
 
 La validation avant l'envoi
 
-J'ai créé shared/validators/audio-file.ts avec les mêmes règles que le backend : la même liste de types et la même limite de 25 Mo, et une fonction validateAudioFile() qui renvoie un message d'erreur clair ou null si c'est bon. Je l'appelle dès qu'on choisit un fichier, comme ça l'erreur s'affiche direct et le bouton Envoyer se grise, et je la rappelle dans upload() juste avant l'appel HTTP par sécurité. L'input file a aussi un accept avec les types autorisés pour que la fenêtre de choix propose surtout les bons fichiers.
+J'ai créé shared/validators/audio-file.ts avec les mêmes règles que le backend, donc la même liste de types et la même limite de 25 Mo, et une fonction validateAudioFile() qui renvoie un message d'erreur clair ou null si c'est bon. Je l'appelle dès qu'on choisit un fichier, comme ça l'erreur s'affiche direct et le bouton Envoyer se grise, et je la rappelle dans upload() juste avant l'appel HTTP par sécurité. L'input file a aussi un accept avec les types autorisés pour que la fenêtre de choix propose surtout les bons fichiers.
 
-Pourquoi c'est pas suffisant tout seul : la validation front c'est pour le confort, on sait tout de suite que ça va pas au lieu d'attendre d'avoir envoyé 30 Mo pour rien. Mais n'importe qui peut la contourner, en envoyant la requête avec curl ou Postman, en modifiant le JS dans le navigateur, ou juste en renommant un fichier (le type MIME est deviné par le navigateur à partir de l'extension). Le backend c'est le seul endroit qu'on contrôle vraiment, donc c'est lui qui doit avoir le dernier mot. D'ailleurs j'ai testé avec curl : un fichier texte envoyé direct à l'API donne bien 400 "Format audio non accepté", et un envoi sans fichier donne 400 "Fichier audio requis".
+Pourquoi c'est pas suffisant tout seul ? La validation front c'est pour le confort, on sait tout de suite que ça va pas au lieu d'attendre d'avoir envoyé 30 Mo pour rien. Mais n'importe qui peut la contourner, en envoyant la requête avec curl ou Postman, en modifiant le JS dans le navigateur, ou juste en renommant un fichier (le type MIME est deviné par le navigateur à partir de l'extension). Le backend c'est le seul endroit qu'on contrôle vraiment, donc c'est lui qui doit avoir le dernier mot. D'ailleurs j'ai testé avec curl, un fichier texte envoyé direct à l'API donne bien 400 "Format audio non accepté", et un envoi sans fichier donne 400 "Fichier audio requis".
 
-Dans le navigateur, quand je choisis un fichier texte, le message rouge s'affiche tout de suite et le bouton Envoyer reste grisé. Dans Network on voit qu'aucune requête POST est partie : le 400 du serveur arrive jamais jusqu'au navigateur parce que la validation front bloque avant. C'est pour ça que le 400 du backend je l'ai prouvé avec curl.
+Dans le navigateur, quand je choisis un fichier texte, le message rouge s'affiche tout de suite et le bouton Envoyer reste grisé. Dans Network on voit qu'aucune requête POST est partie. Le 400 du serveur arrive jamais jusqu'au navigateur parce que la validation front bloque avant. C'est pour ça que le 400 du backend je l'ai prouvé avec curl.
 
 ![Fichier invalide refusé avant l'envoi](screenshots/tp2/fichier_invalide.PNG)
 
@@ -136,35 +136,35 @@ Les cards
 
 Avant c'était une simple liste avec le titre et "3605337 Ko", sauf que la taille renvoyée par l'API c'est des octets, pas des Ko. Maintenant chaque piste est une card dans une grille responsive (repeat(auto-fill, minmax(200px, 1fr)), donc plusieurs colonnes sur grand écran et une seule sur téléphone). Une card affiche le titre, le nom d'origine du fichier, le format, la taille et la date d'ajout, plus un bouton Écouter.
 
-Pour le format et la taille j'ai fait deux petits pipes dans shared/pipes : audioFormat qui transforme audio/mpeg en MP3, et fileSize qui transforme les octets en Ko ou Mo (3605337 octets ça donne 3,4 Mo). La date passe par le DatePipe d'Angular.
+Pour le format et la taille j'ai fait deux petits pipes dans shared/pipes, audioFormat qui transforme audio/mpeg en MP3, et fileSize qui transforme les octets en Ko ou Mo (3605337 octets ça donne 3,4 Mo). La date passe par le DatePipe d'Angular.
 
 Pour l'accessibilité, les pistes sont dans une vraie liste ul/li, les infos dans une liste de définitions dl/dt/dd, chaque bouton a un aria-label "Écouter + titre" pour qu'un lecteur d'écran sache quelle piste il lance, le focus clavier est bien visible, et la card en cours de lecture a aria-current en plus d'un contour vert.
 
 La lecture
 
-Le mécanisme était déjà là, j'ai complété ce qui manquait. Au-dessus des cards y'a maintenant "En cours : titre" avec le lecteur. Pendant le téléchargement du fichier le bouton de la piste affiche "Chargement…". Si la requête échoue j'affiche un message clair : avec un 404 ça veut dire que la piste existe pas ou appartient à quelqu'un d'autre. Si le fichier arrive mais que le navigateur arrive pas à le lire, l'événement (error) de la balise audio affiche aussi un message.
+Le mécanisme était déjà là, j'ai complété ce qui manquait. Au-dessus des cards y'a maintenant le titre de la piste en cours avec le lecteur. Pendant le téléchargement du fichier le bouton de la piste affiche "Chargement…". Si la requête échoue j'affiche un message clair. Avec un 404 ça veut dire que la piste existe pas ou appartient à quelqu'un d'autre. Si le fichier arrive mais que le navigateur arrive pas à le lire, l'événement (error) de la balise audio affiche aussi un message.
 
-Et le dernier truc qui manquait : révoquer l'ObjectURL finale quand on quitte la page. play() révoquait déjà l'ancienne URL à chaque nouvelle lecture, mais la dernière restait en mémoire pour toujours. J'ai ajouté un DestroyRef.onDestroy qui la révoque quand le composant est détruit.
+Et le dernier truc qui manquait, c'était de révoquer l'ObjectURL finale quand on quitte la page. play() révoquait déjà l'ancienne URL à chaque nouvelle lecture, mais la dernière restait en mémoire pour toujours. J'ai ajouté un DestroyRef.onDestroy qui la révoque quand le composant est détruit.
 
-Sur cette capture on voit la lecture en cours avec la card entourée en vert, et la requête audio : GET en 200, Content-Type audio/mpeg (donc c'est bien un flux audio et pas du JSON) et Accept-Ranges bytes. Le header Authorization est bien là dans la requête, j'ai masqué la valeur du token.
+Sur cette capture on voit la lecture en cours avec la card entourée en vert, et la requête audio, un GET en 200 avec Content-Type audio/mpeg (donc c'est bien un flux audio et pas du JSON) et Accept-Ranges bytes. Le header Authorization est bien là dans la requête, j'ai masqué la valeur du token.
 
 ![Lecture audio authentifiée](screenshots/tp2/lecture_audio.PNG)
 
-J'ai aussi vérifié qu'une piste peut être lue que par son propriétaire : j'ai créé un deuxième compte (proprio-test@example.com) et j'ai essayé de lire une piste du compte demo avec son token, le serveur répond 404 "Piste inconnue", et ce compte voit 0 piste dans sa liste. C'est parce que la route cherche la piste avec son id ET ownerId égal à l'utilisateur du token.
+J'ai aussi vérifié qu'une piste peut être lue que par son propriétaire. J'ai créé un deuxième compte (proprio-test@example.com) et j'ai essayé de lire une piste du compte demo avec son token, le serveur répond 404 "Piste inconnue", et ce compte voit 0 piste dans sa liste. C'est parce que la route cherche la piste avec son id ET ownerId égal à l'utilisateur du token.
 
-Je l'ai aussi montré dans le navigateur : connecté avec le compte de test, j'ai lancé dans la console un fetch vers l'audio d'une piste du compte demo, avec le token du compte de test. Le serveur répond 404.
+Je l'ai aussi montré dans le navigateur. Connecté avec le compte de test, j'ai lancé dans la console un fetch vers l'audio d'une piste du compte demo, avec le token du compte de test. Le serveur répond 404.
 
-![Piste d'un autre utilisateur : 404](screenshots/tp2/proprietaire_404.PNG)
+![Piste d'un autre utilisateur, réponse 404](screenshots/tp2/proprietaire_404.PNG)
 
 Blob, buffering et streaming, la différence
 
-Télécharger un Blob complet c'est ce qu'on fait avec HttpClient : on attend d'avoir tout le fichier en mémoire avant de pouvoir faire quoi que ce soit avec. Le buffering c'est ce que fait le navigateur quand il lit un son depuis une URL HTTP : il télécharge un peu d'avance, commence à jouer, et continue à charger pendant la lecture. Le streaming côté serveur c'est quand le serveur envoie le fichier par morceaux au lieu de le charger en entier dans sa mémoire avant, et qu'il sait répondre à une demande du genre "donne moi juste les octets 1000 à 2000" (les requêtes Range).
+Télécharger un Blob complet c'est ce qu'on fait avec HttpClient, on attend d'avoir tout le fichier en mémoire avant de pouvoir faire quoi que ce soit avec. Le buffering c'est ce que fait le navigateur quand il lit un son depuis une URL HTTP. Il télécharge un peu d'avance, commence à jouer, et continue à charger pendant la lecture. Le streaming côté serveur c'est quand le serveur envoie le fichier par morceaux au lieu de le charger en entier dans sa mémoire avant, et qu'il sait répondre à une demande du genre "donne moi juste les octets 1000 à 2000" (les requêtes Range).
 
-## Mission 3 — Questions sur mémoire, buffering et streaming
+## Mission 3, questions sur mémoire, buffering et streaming
 
 Le backend envoie-t-il le fichier entier en mémoire ou progressivement depuis le disque ?
 
-Progressivement. La route utilise res.sendFile(), qui lit le fichier sur le disque avec un flux et l'envoie morceau par morceau, sans jamais le charger en entier dans la mémoire du serveur. En plus il gère les requêtes Range : j'ai testé avec curl, la réponse normale a Accept-Ranges: bytes et Content-Length: 3605337, et si je demande juste les octets 0 à 1023 il répond 206 Partial Content avec Content-Range: bytes 0-1023/3605337.
+Progressivement. La route utilise res.sendFile(), qui lit le fichier sur le disque avec un flux et l'envoie morceau par morceau, sans jamais le charger en entier dans la mémoire du serveur. En plus il gère les requêtes Range. J'ai testé avec curl, la réponse normale a Accept-Ranges à bytes et un Content-Length de 3605337, et si je demande juste les octets 0 à 1023 il répond 206 Partial Content avec un Content-Range bytes 0-1023/3605337.
 
 Avec HttpClient et responseType "blob", à quel moment le composant reçoit-il le fichier ?
 
@@ -176,15 +176,15 @@ Non. Déjà la liste est paginée, donc on en affiche 5, 10 ou 20 max. Et surtou
 
 Quelle différence avec 100 éléments audio utilisant directement une URL HTTP ?
 
-D'abord ça marcherait même pas ici : comme expliqué plus haut, le navigateur enverrait pas le JWT, donc 401 partout. Mais en imaginant une route publique, chaque balise audio fait ses propres requêtes. Selon l'attribut preload, le navigateur peut lancer une requête pour chacune des 100 dès l'affichage (au moins pour les métadonnées, voire le début du fichier), donc beaucoup de trafic pour rien. Par contre l'avantage c'est que le navigateur gère le buffering et les Range tout seul : la lecture commence avant la fin du téléchargement, on peut sauter au milieu du morceau sans tout charger, et il libère la mémoire lui-même.
+D'abord ça marcherait même pas ici. Comme expliqué plus haut, le navigateur enverrait pas le JWT, donc 401 partout. Mais en imaginant une route publique, chaque balise audio fait ses propres requêtes. Selon l'attribut preload, le navigateur peut lancer une requête pour chacune des 100 dès l'affichage (au moins pour les métadonnées, voire le début du fichier), donc beaucoup de trafic pour rien. Par contre l'avantage c'est que le navigateur gère le buffering et les Range tout seul. La lecture commence avant la fin du téléchargement, on peut sauter au milieu du morceau sans tout charger, et il libère la mémoire lui-même.
 
 Pourquoi l'URL créée par URL.createObjectURL doit-elle être révoquée ?
 
-Parce que tant qu'elle existe, le navigateur garde le Blob en mémoire, même si plus aucune variable pointe dessus : l'URL elle-même est une référence. Normalement ça se nettoie quand on ferme ou recharge la page, mais dans une SPA Angular on recharge jamais la page, on change juste de composant. Donc sans revokeObjectURL, chaque morceau écouté resterait en mémoire (plusieurs Mo à chaque fois) jusqu'à la fermeture de l'onglet, c'est une fuite mémoire. C'est pour ça qu'on révoque l'ancienne à chaque nouvelle lecture et la dernière à la destruction du composant.
+Parce que tant qu'elle existe, le navigateur garde le Blob en mémoire, même si plus aucune variable pointe dessus, parce que l'URL elle-même est une référence. Normalement ça se nettoie quand on ferme ou recharge la page, mais dans une SPA Angular on recharge jamais la page, on change juste de composant. Donc sans revokeObjectURL, chaque morceau écouté resterait en mémoire (plusieurs Mo à chaque fois) jusqu'à la fermeture de l'onglet, c'est une fuite mémoire. C'est pour ça qu'on révoque l'ancienne à chaque nouvelle lecture et la dernière à la destruction du composant.
 
-## Mission 3 — Pourquoi Blob et ObjectURL
+## Mission 3, pourquoi Blob et ObjectURL
 
-En gros on avait un problème : les fichiers audio sont protégés par le JWT, et une balise audio avec un src normal peut pas envoyer ce JWT. La solution c'est de télécharger le fichier nous-mêmes avec HttpClient, qui passe par l'intercepteur et envoie donc le token. HttpClient nous rend le fichier sous forme de Blob, c'est juste des données binaires en mémoire. Sauf que la balise audio elle veut une URL, pas un Blob. URL.createObjectURL sert à ça : ça crée une URL locale blob:... qui pointe vers le Blob, et le lecteur peut la lire comme n'importe quelle URL, sans refaire de requête.
+En gros on avait un problème, les fichiers audio sont protégés par le JWT, et une balise audio avec un src normal peut pas envoyer ce JWT. La solution c'est de télécharger le fichier nous-mêmes avec HttpClient, qui passe par l'intercepteur et envoie donc le token. HttpClient nous rend le fichier sous forme de Blob, c'est juste des données binaires en mémoire. Sauf que la balise audio elle veut une URL, pas un Blob. URL.createObjectURL sert à ça, ça crée une URL locale blob:... qui pointe vers le Blob, et le lecteur peut la lire comme n'importe quelle URL, sans refaire de requête.
 
 Les inconvénients c'est qu'il faut attendre que tout le fichier soit téléchargé avant de lire, que le fichier entier est en mémoire dans le navigateur, et qu'il faut penser à révoquer l'URL. Pour des fichiers de 25 Mo max c'est acceptable. Pour de gros fichiers, on pourrait passer à un token court dans un cookie, ou une URL signée temporaire, pour laisser le navigateur faire du vrai streaming.
 
@@ -194,7 +194,7 @@ J'ai fait toutes celles proposées par le sujet. Le formatage lisible de la tail
 
 La barre de progression de l'upload
 
-Par défaut HttpClient renvoie juste la réponse finale. Dans TrackService.upload() j'ai ajouté observe: 'events' et reportProgress: true, du coup l'Observable émet plein d'événements pendant l'envoi. Dans le composant je regarde le type de chaque événement : si c'est un UploadProgress, je calcule le pourcentage avec loaded / total et je le mets dans un signal progress, et si c'est la Response finale, je récupère la piste dans event.body et je fais comme avant (message de succès, formulaire vidé, page 1). La barre c'est une balise progress native, avec un aria-label pour les lecteurs d'écran, et le pourcentage écrit à côté. Quand on arrive à 100 % j'affiche "Fichier reçu, enregistrement en cours…", parce qu'à ce moment là le navigateur a fini d'envoyer mais le serveur doit encore écrire dans MongoDB. En local ça va super vite, donc pour la voir avancer faut activer le throttling "Slow 4G" dans l'onglet Network. Sur la capture l'envoi vient de démarrer : bouton "Envoi en cours…" désactivé, input fichier grisé, barre et pourcentage, et la requête tracks en pending.
+Par défaut HttpClient renvoie juste la réponse finale. Dans TrackService.upload() j'ai mis observe à 'events' et reportProgress à true, du coup l'Observable émet plein d'événements pendant l'envoi. Dans le composant je regarde le type de chaque événement. Si c'est un UploadProgress, je calcule le pourcentage avec loaded / total et je le mets dans un signal progress, et si c'est la Response finale, je récupère la piste dans event.body et je fais comme avant (message de succès, formulaire vidé, page 1). La barre c'est une balise progress native, avec un aria-label pour les lecteurs d'écran, et le pourcentage écrit à côté. Quand on arrive à 100 % j'affiche "Fichier reçu, enregistrement en cours…", parce qu'à ce moment là le navigateur a fini d'envoyer mais le serveur doit encore écrire dans MongoDB. En local ça va super vite, donc pour la voir avancer faut activer le throttling "Slow 4G" dans l'onglet Network. Sur la capture l'envoi vient de démarrer, on voit le bouton "Envoi en cours…" désactivé, input fichier grisé, barre et pourcentage, et la requête tracks en pending.
 
 ![Upload en cours avec la barre de progression](screenshots/tp2/progression_upload.PNG)
 
@@ -202,11 +202,11 @@ La suppression avec confirmation
 
 La route DELETE /api/tracks/:id existait déjà dans le backend (elle supprime la fiche dans MongoDB et le fichier sur le disque, et vérifie aussi que la piste appartient à l'utilisateur), il manquait juste le front. J'ai ajouté remove(id) dans TrackService, et un bouton Supprimer rouge sur chaque card.
 
-Pour la confirmation j'ai choisi une dialog Angular Material plutôt que le window.confirm() du navigateur, parce que c'est plus joli, cohérent avec le paginator, et accessible : le focus reste dans la fenêtre, Échap annule, et le focus part par défaut sur Annuler pour pas supprimer par erreur en tapant Entrée. J'ai fait un composant ConfirmDialogComponent générique dans shared/components, qui reçoit un titre, un message et le texte du bouton, et qui renvoie true si on confirme. Comme ça il pourra resservir pour d'autres confirmations.
+Pour la confirmation j'ai choisi une dialog Angular Material plutôt que le window.confirm() du navigateur, parce que c'est plus joli, cohérent avec le paginator, et accessible. Le focus reste dans la fenêtre, Échap annule, et le focus part par défaut sur Annuler pour pas supprimer par erreur en tapant Entrée. J'ai fait un composant ConfirmDialogComponent générique dans shared/components, qui reçoit un titre, un message et le texte du bouton, et qui renvoie true si on confirme. Comme ça il pourra resservir pour d'autres confirmations.
 
-Après la suppression la liste est rechargée depuis le serveur et un message "« titre » a été supprimée" s'affiche. Deux cas particuliers que j'ai gérés : si je supprime la piste en train d'être lue, le lecteur est coupé et son ObjectURL révoquée, et si je supprime la dernière piste d'une page qui est pas la première, on revient à la page d'avant au lieu d'afficher une page vide. Si le serveur répond une erreur (par exemple la fiche supprimée mais pas le fichier), le message s'affiche et la liste est rechargée quand même pour rester à jour.
+Après la suppression la liste est rechargée depuis le serveur et un message "« titre » a été supprimée" s'affiche. J'ai géré deux cas particuliers. Si je supprime la piste en train d'être lue, le lecteur est coupé et son ObjectURL révoquée, et si je supprime la dernière piste d'une page qui est pas la première, on revient à la page d'avant au lieu d'afficher une page vide. Si le serveur répond une erreur (par exemple la fiche supprimée mais pas le fichier), le message s'affiche et la liste est rechargée quand même pour rester à jour.
 
-Testé avec curl sur le compte de test : le premier DELETE répond 204, le deuxième 404 parce que la piste existe plus, et la liste retombe à 0. Et dans le navigateur on voit la dialog de confirmation, le message "« Test Multipart » a été supprimée", et dans Network la requête DELETE en 204 No Content suivie du rechargement tracks?page=1&limit=5.
+Testé avec curl sur le compte de test, le premier DELETE répond 204, le deuxième 404 parce que la piste existe plus, et la liste retombe à 0. Et dans le navigateur on voit la dialog de confirmation, le message "« Test Multipart » a été supprimée", et dans Network la requête DELETE en 204 No Content suivie du rechargement tracks?page=1&limit=5.
 
 ![Dialog de confirmation et DELETE en 204](screenshots/tp2/suppression_son.PNG)
 
@@ -214,33 +214,33 @@ Le filtre par titre
 
 Pour garder une vraie pagination serveur, j'ai fait le filtre côté backend et pas en filtrant les pistes déjà affichées, sinon on trouverait jamais les pistes des autres pages. GET /api/tracks accepte maintenant un paramètre optionnel q. Si il est là, le backend ajoute une condition sur le titre dans le $match du pipeline d'agrégation, avec une regex insensible aux majuscules. Et du coup total et pages sont calculés sur les résultats filtrés, donc le paginator reste juste. J'ai documenté le paramètre dans API_CONTRACT.md.
 
-Côté sécurité j'ai fait attention à deux trucs. Le q doit être une chaîne (si quelqu'un envoie ?q=a&q=b ça fait un tableau, et on l'ignore) et il est coupé à 100 caractères. Et surtout les caractères spéciaux des regex sont échappés avant de construire la requête : sans ça, quelqu'un pourrait taper .* pour tout matcher, ou une regex volontairement très lente pour bloquer le serveur. J'ai testé : "song" et "SONG" donnent les mêmes 3 pistes, "coffee" en donne 1, ".*" en donne 0 parce qu'il est cherché tel quel, et "(" fait pas planter le serveur.
+Côté sécurité j'ai fait attention à deux trucs. Le q doit être une chaîne (si quelqu'un envoie ?q=a&q=b ça fait un tableau, et on l'ignore) et il est coupé à 100 caractères. Et surtout les caractères spéciaux des regex sont échappés avant de construire la requête. Sans ça, quelqu'un pourrait taper .* pour tout matcher, ou une regex volontairement très lente pour bloquer le serveur. J'ai testé, "song" et "SONG" donnent les mêmes 3 pistes, "coffee" en donne 1, ".*" en donne 0 parce qu'il est cherché tel quel, et "(" fait pas planter le serveur.
 
-Côté front, y'a un champ "Rechercher par titre" au-dessus des cards. Pour pas envoyer une requête à chaque lettre tapée, j'utilise valueChanges avec debounceTime(300) : on attend 300 ms sans frappe avant de chercher, avec distinctUntilChanged pour pas relancer la même recherche, et takeUntilDestroyed pour arrêter d'écouter quand on quitte la page. À chaque nouvelle recherche on repart de la page 1. J'ai aussi fait en sorte que load() annule la requête précédente si elle est pas finie, sinon une vieille réponse lente pourrait arriver après la nouvelle et écraser les bons résultats. Et si rien correspond, ça affiche "Aucune piste ne correspond à « … »".
+Côté front, y'a un champ "Rechercher par titre" au-dessus des cards. Pour pas envoyer une requête à chaque lettre tapée, j'utilise valueChanges avec debounceTime(300). On attend 300 ms sans frappe avant de chercher, avec distinctUntilChanged pour pas relancer la même recherche, et takeUntilDestroyed pour arrêter d'écouter quand on quitte la page. À chaque nouvelle recherche on repart de la page 1. J'ai aussi fait en sorte que load() annule la requête précédente si elle est pas finie, sinon une vieille réponse lente pourrait arriver après la nouvelle et écraser les bons résultats. Et si rien correspond, ça affiche "Aucune piste ne correspond à « … »".
 
 Sur la capture j'ai tapé "song" et on voit la requête tracks?page=1&limit=5&q=song partir vers le serveur.
 
 ![Filtre par titre envoyé au serveur](screenshots/tp2/recherche_son.PNG)
 
-## AVANCÉ — Image de couverture
+## AVANCÉ, image de couverture
 
-Le sujet proposait deux façons de faire : laisser l'utilisateur uploader une image, ou chercher la pochette tout seul avec les tags ID3 et un service web. J'ai choisi l'upload, parce que c'est moi qui contrôle l'image, y'a pas de dépendance à un service extérieur, et pas de souci de droits sur des images trouvées sur internet (mes mp3 "no copyright" ont de toute façon pas de pochette dans leurs tags).
+Le sujet proposait deux façons de faire, laisser l'utilisateur uploader une image, ou chercher la pochette tout seul avec les tags ID3 et un service web. J'ai choisi l'upload, parce que c'est moi qui contrôle l'image, y'a pas de dépendance à un service extérieur, et pas de souci de droits sur des images trouvées sur internet (mes mp3 "no copyright" ont de toute façon pas de pochette dans leurs tags).
 
 Ce qui change dans les données et dans l'API
 
 Le sujet demande de réfléchir à ça avant de coder, donc je l'ai fait en premier.
 
-Côté données, le modèle Track a deux nouveaux champs. coverName c'est le nom du fichier image sur le disque : il est aléatoire et en select: false, exactement comme storedName pour l'audio, donc il sort jamais de la base par erreur. Et coverType c'est le type de l'image (image/png…). Le front a juste besoin de savoir s'il y a une image ou pas, donc toPublic() renvoie un booléen hasCover, calculé à partir de coverType. Dans le pipeline de GET /api/tracks j'ai ajouté un $addFields qui calcule le même hasCover avant de masquer les champs de couverture. Les anciennes pistes ont pas de couverture, elles ont juste hasCover à false, donc pas besoin de migrer quoi que ce soit.
+Côté données, le modèle Track a deux nouveaux champs. coverName c'est le nom du fichier image sur le disque. Il est aléatoire et en select à false, exactement comme storedName pour l'audio, donc il sort jamais de la base par erreur. Et coverType c'est le type de l'image (image/png…). Le front a juste besoin de savoir s'il y a une image ou pas, donc toPublic() renvoie un booléen hasCover, calculé à partir de coverType. Dans le pipeline de GET /api/tracks j'ai ajouté un $addFields qui calcule le même hasCover avant de masquer les champs de couverture. Les anciennes pistes ont pas de couverture, elles ont juste hasCover à false, donc pas besoin de migrer quoi que ce soit.
 
-Côté API, j'ai pas touché à POST /api/tracks parce que c'est le contrat des missions principales. La couverture a ses deux routes à elle : PUT /api/tracks/:id/cover pour ajouter ou remplacer l'image (multipart avec un champ cover), et GET /api/tracks/:id/cover pour la récupérer. Et DELETE /api/tracks/:id supprime maintenant aussi le fichier image. L'avantage de séparer c'est que je peux ajouter une image au moment de l'envoi (le front fait juste deux requêtes à la suite) mais aussi plus tard sur une piste qui existe déjà. Tout est documenté dans API_CONTRACT.md.
+Côté API, j'ai pas touché à POST /api/tracks parce que c'est le contrat des missions principales. La couverture a ses deux routes à elle, PUT /api/tracks/:id/cover pour ajouter ou remplacer l'image (multipart avec un champ cover), et GET /api/tracks/:id/cover pour la récupérer. Et DELETE /api/tracks/:id supprime maintenant aussi le fichier image. L'avantage de séparer c'est que je peux ajouter une image au moment de l'envoi (le front fait juste deux requêtes à la suite) mais aussi plus tard sur une piste qui existe déjà. Tout est documenté dans API_CONTRACT.md.
 
 La sécurité
 
-Une image c'est un fichier envoyé par l'utilisateur, donc je l'ai traitée aussi sérieusement que l'audio. Multer a une deuxième config juste pour les couvertures : 2 Mo maximum, et seulement JPEG, PNG ou WebP. J'ai volontairement refusé le SVG parce qu'un SVG c'est du XML qui peut contenir du JavaScript, donc un risque de faille XSS.
+Une image c'est un fichier envoyé par l'utilisateur, donc je l'ai traitée aussi sérieusement que l'audio. Multer a une deuxième config juste pour les couvertures, avec 2 Mo maximum et seulement JPEG, PNG ou WebP. J'ai volontairement refusé le SVG parce qu'un SVG c'est du XML qui peut contenir du JavaScript, donc un risque de faille XSS.
 
-Mais le type MIME c'est le navigateur (ou curl) qui le déclare, donc on peut mentir. Du coup après l'upload, le serveur lit les premiers octets du fichier, sa "signature" : un JPEG commence toujours par FF D8 FF, un PNG par 89 50 4E 47, un WebP par RIFF….WEBP. Si ça correspond pas, le fichier est supprimé et on répond 400. Les deux routes demandent le JWT et vérifient que la piste appartient à l'utilisateur (sinon 404), comme pour l'audio. Si quoi que ce soit échoue après l'écriture du fichier, il est supprimé pour pas laisser de fichier orphelin, et quand on remplace une image l'ancienne est supprimée du disque. En lecture j'envoie aussi le header X-Content-Type-Options: nosniff, pour que le navigateur essaie pas de deviner un autre type que celui annoncé.
+Mais le type MIME c'est le navigateur (ou curl) qui le déclare, donc on peut mentir. Du coup après l'upload, le serveur lit les premiers octets du fichier, sa "signature". Un JPEG commence toujours par FF D8 FF, un PNG par 89 50 4E 47, un WebP par RIFF….WEBP. Si ça correspond pas, le fichier est supprimé et on répond 400. Les deux routes demandent le JWT et vérifient que la piste appartient à l'utilisateur (sinon 404), comme pour l'audio. Si quoi que ce soit échoue après l'écriture du fichier, il est supprimé pour pas laisser de fichier orphelin, et quand on remplace une image l'ancienne est supprimée du disque. En lecture j'envoie aussi le header X-Content-Type-Options à nosniff, pour que le navigateur essaie pas de deviner un autre type que celui annoncé.
 
-J'ai tout testé avec curl sur le compte de test : une vraie image PNG donne 200 avec hasCover à true, la lecture renvoie image/png avec nosniff, un fichier texte renommé en .png donne 400 "Le fichier n'est pas une image valide", une image de plus de 2 Mo donne 400, un SVG donne 400, sans fichier 400, sans token 401, et avec le token du compte demo 404 en lecture comme en envoi. J'ai aussi compté les fichiers dans data/uploads : un envoi refusé ou un remplacement laisse aucun fichier en trop, et supprimer la piste enlève bien l'audio et l'image. J'ai ajouté un test backend qui vérifie que toPublic() renvoie hasCover mais jamais coverName ni storedName, les 4 tests passent.
+J'ai tout testé avec curl sur le compte de test. Une vraie image PNG donne 200 avec hasCover à true, la lecture renvoie image/png avec nosniff, un fichier texte renommé en .png donne 400 "Le fichier n'est pas une image valide", une image de plus de 2 Mo donne 400, un SVG donne 400, sans fichier 400, sans token 401, et avec le token du compte demo 404 en lecture comme en envoi. J'ai aussi compté les fichiers dans data/uploads, un envoi refusé ou un remplacement laisse aucun fichier en trop, et supprimer la piste enlève bien l'audio et l'image. J'ai ajouté un test backend qui vérifie que toPublic() renvoie hasCover mais jamais coverName ni storedName, les 4 tests passent.
 
 Côté front
 
@@ -248,8 +248,50 @@ Dans le formulaire Importer y'a un nouveau champ facultatif "Image de couverture
 
 Sur chaque card l'image s'affiche en haut en carré. Si y'a pas d'image, c'est une vignette neutre avec une note de musique. En dessous des boutons y'a "Ajouter une image" ou "Changer l'image", qui ouvre directement le choix de fichier et met à jour juste cette card.
 
-Comme l'audio, l'image est protégée par le JWT, donc une balise img avec un src direct marcherait pas pour la même raison que la balise audio. J'utilise le même principe : je récupère l'image en Blob avec HttpClient et je crée une ObjectURL. Après chaque chargement de liste, je demande seulement les images des pistes affichées qui ont hasCover à true. Et vu que chaque ObjectURL garde l'image en mémoire, je les révoque toutes à chaque changement de page et quand on quitte la page, et j'annule les requêtes d'images pas encore finies.
+Comme l'audio, l'image est protégée par le JWT, donc une balise img avec un src direct marcherait pas pour la même raison que la balise audio. J'utilise le même principe, je récupère l'image en Blob avec HttpClient et je crée une ObjectURL. Après chaque chargement de liste, je demande seulement les images des pistes affichées qui ont hasCover à true. Et vu que chaque ObjectURL garde l'image en mémoire, je les révoque toutes à chaque changement de page et quand on quitte la page, et j'annule les requêtes d'images pas encore finies.
 
 Accessibilité et droits
 
 Chaque image a un alt "Pochette de" + le titre. La vignette sans image est en aria-hidden parce qu'elle est juste décorative. Le bouton pour changer l'image c'est en vrai un input file caché visuellement mais toujours accessible au clavier, avec un aria-label qui dit sur quelle piste il agit, et un contour visible quand il a le focus. Pour les droits, y'a une phrase sous le champ qui rappelle d'utiliser une image dont on a les droits, et l'appli va jamais chercher d'image sur internet toute seule.
+
+La capture
+
+Cette capture je l'avais pas faite au moment du TP2. Je l'ai prise après, quand le design du site avait déjà été refait au TP3, c'est pour ça qu'elle ressemble pas aux autres captures du TP2. La fonctionnalité elle a pas changé. J'ai ajouté une image que j'ai faite moi même sur song2.mp3 avec le bouton de la card. Le PUT sur /api/tracks/:id/cover répond 200, juste après le GET de l'image part pour l'afficher, et un message confirme que l'image a été mise à jour. Le token est masqué.
+
+![Ajout d'une couverture, PUT en 200](screenshots/tp2/couverture_upload.PNG)
+
+## AVANCÉ, image de couverture, deuxième approche
+
+Au moment du TP2 j'avais fait seulement l'upload manuel. Je suis revenu dessus plus tard, pendant le TP3, pour faire aussi la deuxième approche du sujet, où c'est l'appli qui trouve la pochette toute seule avec les tags ID3 et un service web. J'ai ajouté des fonctionnalités au backend sans changer les routes existantes.
+
+Les tags ID3
+
+Les mp3 contiennent souvent des métadonnées (titre, artiste, album, et même l'image de l'album). Avec la librairie music-metadata, au moment du POST /api/tracks le backend lit ces tags. S'il y a une image dedans, elle est enregistrée comme couverture avec les mêmes règles qu'un upload manuel, donc 2 Mo max, et JPEG, PNG ou WebP vérifié par les premiers octets du fichier, pas par le type annoncé. S'il y a pas de tags, il essaie de deviner à partir du nom du fichier quand il est de la forme "Artiste - Titre.mp3". Si les tags sont illisibles l'upload plante pas, on fait juste sans.
+
+La recherche en ligne
+
+J'ai ajouté une route POST /api/tracks/:id/cover/lookup. Elle cherche le morceau sur MusicBrainz (une base de données musicale ouverte) avec l'artiste et le titre, garde seulement les résultats avec un score d'au moins 80 sur 100, puis demande l'image de l'album à Cover Art Archive. MusicBrainz demande un User-Agent qui identifie l'appli et maximum une requête par seconde, donc les appels passent par une petite file d'attente. Le texte reçu est nettoyé avant d'être stocké parce que ça vient de l'extérieur. Si MusicBrainz répond pas c'est un 502, si rien est trouvé c'est un 404 avec un message clair. Le champ coverSource ('upload', 'id3' ou 'web') dit d'où vient l'image, et j'ai mis à jour API_CONTRACT.md.
+
+Côté Angular, l'artiste s'affiche sur les cards, il y a un bouton "Chercher une pochette en ligne" qui ouvre un petit formulaire prérempli avec l'artiste et le titre (modifiables), et sous une pochette trouvée sur le web on voit un petit crédit vers Cover Art Archive.
+
+Les tests de cette partie
+
+metadata.test.js teste la détection des images par signature, le nettoyage du texte, le découpage "Artiste - Titre", la lecture d'un vrai tag ID3 que le test fabrique lui même, et la recherche de pochette avec un faux fetch, donc sans appeler MusicBrainz pour de vrai.
+
+Ce que ça donne sur mes fichiers
+
+coffee-time.mp3 avait des tags ID3 avec une image, donc à l'upload il a eu directement l'artiste (shushubobo) et sa pochette. Pour tester la recherche web j'ai renommé une copie de summer-breeze en "Daft Punk - Get Lucky.mp3", l'artiste et le titre ont été devinés depuis le nom et la recherche en ligne a trouvé une pochette.
+
+Le cas le plus intéressant c'est Beat_Keep_Rocking.mp3, qui a aucun tag. Le morceau est de Starjunk, mais en cherchant "Beat Keep Rocking" de "Starjunk" le serveur répondait "Aucune pochette trouvée". En allant voir directement sur MusicBrainz, j'ai compris pourquoi. L'artiste s'appelle en fait "Starjunk 95" et le morceau est enregistré sous le titre "Beat Keep Rockin'", sans le g. Comme la recherche se fait sur le titre exact, un seul caractère de différence suffit à rien trouver. Avec "Starjunk 95" et "Beat Keep Rockin'" dans le formulaire, la pochette de l'album Industrial Sunset Memories a été trouvée et la card affiche maintenant la bonne image. C'est d'ailleurs pour ça que j'ai fait le formulaire modifiable plutôt qu'une recherche automatique à l'aveugle, et si vraiment rien est trouvé, l'upload manuel du TP2 est toujours là.
+
+Les captures
+
+Cette capture je l'avais pas faite au moment du TP2, parce que cette approche a été faite après. Du coup elles sont avec le nouveau design du site, celui refait au TP3.
+
+Une pochette lue dans les tags ID3 de coffee-time, avec l'artiste shushubobo trouvé dans les mêmes tags.
+
+![Pochette venant des tags ID3](screenshots/tp2/pochette_id3.PNG)
+
+La pochette de Beat_Keep_Rocking trouvée sur le web, avec le crédit Cover Art Archive en bas de l'image.
+
+![Pochette trouvée sur le web avec son crédit](screenshots/tp2/pochette_web.PNG)

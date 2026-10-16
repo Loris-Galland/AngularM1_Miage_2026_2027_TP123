@@ -1,6 +1,6 @@
-# TP1 — Mes missions
+# TP1, mes missions
 
-## Mission 0 — Comprendre comment le projet est fait
+## Mission 0, comprendre comment le projet est fait
 
 Alors le but ici c'était de pas toucher au code, juste comprendre comment tout est organisé côté frontend.
 
@@ -36,9 +36,9 @@ Routes publiques vs protégées
 
 En comparant avec API_CONTRACT.md, les routes publiques c'est health, auth/register et auth/login. Tout le reste (users/me et tracks) demande le JWT. Et ça matche avec ce que le guard protège côté front.
 
-Deux trucs que j'ai remarqué en explorant et qui vont être utiles pour la mission 1: y'a aucune gestion du 401 nulle part, donc si le token expire rien redirige vers login automatiquement, faudra sûrement ajouter un intercepteur pour ça. Et sur la page profil, le profil se charge pas tout seul, faut cliquer sur un bouton exprès, à voir si c'est fait exprès ou si c'est à corriger.
+Deux trucs que j'ai remarqué en explorant et qui vont être utiles pour la mission 1. Y'a aucune gestion du 401 nulle part, donc si le token expire rien redirige vers login automatiquement, faudra sûrement ajouter un intercepteur pour ça. Et sur la page profil, le profil se charge pas tout seul, faut cliquer sur un bouton exprès, à voir si c'est fait exprès ou si c'est à corriger.
 
-## Mission 1 — Inscription, connexion et profil
+## Mission 1, inscription, connexion et profil
 
 J'ai d'abord regardé ce qui était déjà fait dans le starter (formulaires, appels API, JWT, Signals, redirections, modif du profil), tout ça était déjà bon. Ce qu'il manquait ou qui était pas top, je le corrige un par un.
 
@@ -62,7 +62,7 @@ Ces quatre points étaient déjà bons dans le starter, j'ai juste vérifié un 
 
 Le bouton de déconnexion
 
-Ça manquait complètement, AuthService.logout() existait déjà mais rien l'appelait nulle part. Je l'ai mis dans la nav de app.html, avec un affichage conditionnel: si je suis connecté (signal token) ça affiche "Déconnexion", sinon ça affiche le lien "Connexion" comme avant. Le clic appelle logout() dans app.ts qui vide le token et redirige vers /login.
+Ça manquait complètement, AuthService.logout() existait déjà mais rien l'appelait nulle part. Je l'ai mis dans la nav de app.html, avec un affichage conditionnel. Si je suis connecté (signal token) ça affiche "Déconnexion", sinon ça affiche le lien "Connexion" comme avant. Le clic appelle logout() dans app.ts qui vide le token et redirige vers /login.
 
 Le chargement automatique du profil
 
@@ -72,11 +72,13 @@ La gestion du 401
 
 C'était le dernier truc qui manquait, repéré dès la mission 0. J'ai créé un nouvel intercepteur (error.interceptor.ts) qui catch les erreurs HTTP, et si c'est un 401 (token invalide ou expiré), il vide la session avec auth.logout() et renvoie vers /login. Je l'ai branché dans main.ts juste après authInterceptor.
 
-Testé côté backend que renvoyer un faux token donne bien 401. Le comportement dans le navigateur (redirection effective) reste à vérifier moi-même en changeant le token dans le localStorage.
+Testé côté backend que renvoyer un faux token donne bien 401. Après j'ai vérifié dans le navigateur. J'ai mis un faux token dans le localStorage (gpc_token) et je suis allé sur /profile. Le GET /api/users/me répond 401, l'intercepteur vide la session et on se retrouve direct sur /login. Le token qu'on voit dans le header c'est le faux, donc rien de sensible. Cette capture je l'avais pas faite au moment du TP1, je l'ai prise après, quand le design du site avait déjà été refait au TP3. C'est pour ça qu'elle ressemble pas aux autres captures du TP1, mais l'intercepteur lui a pas changé.
+
+![Faux token, GET /api/users/me en 401 et retour sur /login](screenshots/tp1/token_invalide.PNG)
 
 Séparation composant / service / API
 
-Le sujet demande explicitement qu'un composant appelle jamais HttpClient direct, toujours via AuthService. J'ai vérifié avec un grep sur tout le dossier components, zéro résultat: aucun composant n'importe HttpClient. Seuls les deux services (auth.service.ts et track.service.ts) l'injectent. Tous les composants utilisent inject() pour récupérer AuthService, TrackService ou Router, jamais autre chose.
+Le sujet demande explicitement qu'un composant appelle jamais HttpClient direct, toujours via AuthService. J'ai vérifié avec un grep sur tout le dossier components, zéro résultat, aucun composant n'importe HttpClient. Seuls les deux services (auth.service.ts et track.service.ts) l'injectent. Tous les composants utilisent inject() pour récupérer AuthService, TrackService ou Router, jamais autre chose.
 
 À propos de l'IA
 
@@ -84,7 +86,7 @@ Le modèle que j'utilise dans mon assistant c'est Claude Sonnet 5. Pour voir com
 
 Signal ou localStorage, c'est quoi la différence
 
-Les deux gardent le token mais pas pour la même raison. Le localStorage c'est un stockage du navigateur, il survit quand on recharge la page ou qu'on ferme l'onglet, mais il est pas réactif : si sa valeur change, Angular est pas prévenu et rien se met à jour à l'écran. Le signal c'est l'inverse, il vit seulement en mémoire (au refresh il repart de zéro) mais il est réactif : dès qu'on fait token.set(...), tout ce qui l'utilise se met à jour tout seul, par exemple le bouton Déconnexion dans la nav ou l'intercepteur qui lit token(). Du coup AuthService fait les deux : au démarrage il remplit le signal avec ce qu'il y a dans le localStorage, et à chaque login ou logout il met à jour les deux en même temps.
+Les deux gardent le token mais pas pour la même raison. Le localStorage c'est un stockage du navigateur, il survit quand on recharge la page ou qu'on ferme l'onglet, mais il est pas réactif. Si sa valeur change, Angular est pas prévenu et rien se met à jour à l'écran. Le signal c'est l'inverse, il vit seulement en mémoire (au refresh il repart de zéro) mais il est réactif. Dès qu'on fait token.set(...), tout ce qui l'utilise se met à jour tout seul, par exemple le bouton Déconnexion dans la nav ou l'intercepteur qui lit token(). Du coup AuthService fait les deux. Au démarrage il remplit le signal avec ce qu'il y a dans le localStorage, et à chaque login ou logout il met à jour les deux en même temps.
 
 ## Checkpoint Network
 
@@ -92,13 +94,13 @@ J'ai fait les captures avec l'onglet Network ouvert et filtré sur Fetch/XHR.
 
 Connexion réussie
 
-POST /api/auth/login avec un corps JSON { email, password } (le mot de passe apparaît jamais sur mes captures). Le serveur répond 200 avec { token, user }. Pas besoin d'Authorization sur cette requête, c'est une route publique : c'est justement elle qui donne le token. Juste après on voit la requête tracks?page=1&limit=5 qui part automatiquement parce que la connexion redirige vers la bibliothèque.
+POST /api/auth/login avec un corps JSON { email, password } (le mot de passe apparaît jamais sur mes captures). Le serveur répond 200 avec { token, user }. Pas besoin d'Authorization sur cette requête, c'est une route publique, et c'est justement elle qui donne le token. Juste après on voit la requête tracks?page=1&limit=5 qui part automatiquement parce que la connexion redirige vers la bibliothèque.
 
 ![Connexion réussie en 200](screenshots/tp1/connexion.PNG)
 
 Connexion refusée
 
-Même requête POST /api/auth/login mais avec un mauvais mot de passe. Le serveur répond 401 avec { message: "Identifiants incorrects" }, et c'est ce message là qui s'affiche en rouge sous le formulaire. Dans la console on voit aussi l'erreur loguée par LoginPage avec le status 401.
+Même requête POST /api/auth/login mais avec un mauvais mot de passe. Le serveur répond 401 avec le message "Identifiants incorrects", et c'est ce message là qui s'affiche en rouge sous le formulaire. Dans la console on voit aussi l'erreur loguée par LoginPage avec le status 401.
 
 ![Connexion refusée en 401](screenshots/tp1/mdp_faux.PNG)
 
@@ -106,6 +108,6 @@ Même requête POST /api/auth/login mais avec un mauvais mot de passe. Le serveu
 
 Lecture du profil
 
-GET /api/users/me, sans corps, avec le header Authorization: Bearer suivi du token (ajouté par l'intercepteur, je le montre pas). La réponse c'est l'utilisateur { id, name, email, createdAt }, affiché sur la page. Sur ma capture le statut est 304 et pas 200 : ça veut dire que le serveur a répondu "rien a changé depuis la dernière fois", et le navigateur a réutilisé la réponse qu'il avait en cache. En cochant Disable cache on aurait eu un 200 avec le corps complet.
+GET /api/users/me, sans corps, avec le header Authorization qui contient Bearer suivi du token (ajouté par l'intercepteur, je le montre pas). La réponse c'est l'utilisateur { id, name, email, createdAt }, affiché sur la page. Sur ma capture le statut est 304 et pas 200, ça veut dire que le serveur a répondu "rien a changé depuis la dernière fois", et le navigateur a réutilisé la réponse qu'il avait en cache. En cochant Disable cache on aurait eu un 200 avec le corps complet.
 
 ![Lecture du profil avec GET /api/users/me](screenshots/tp1/profil.PNG)
